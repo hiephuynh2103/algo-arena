@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Algo Arena – Card Battle học Thuật toán</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header>
+  <a class="logo" href="/"><span>A</span>Algo Arena</a>
+  <nav id="nav">
+    <a data-view="home" class="active">Trang chủ</a>
+    <a data-view="board">Bảng xếp hạng</a>
+    <a data-view="library">Thư viện thẻ</a>
+    <a href="/admin" id="navAdmin" class="hidden">Quản trị</a>
+  </nav>
+  <div class="who" id="who"></div>
+</header>
+
+<main>
+  <!-- ============ Khách: giới thiệu + đăng nhập ============ -->
+  <section id="guest" class="hidden">
+    <div class="hero">
+      <div>
+        <h1>Học Cấu trúc dữ liệu & Giải thuật qua <span style="color:var(--accent)">card battle</span></h1>
+        <p class="muted" style="font-size:17px">Mỗi lá bài là một CTDL hoặc chiến lược thuật toán, có chi phí, hiệu ứng và điều kiện sử dụng.
+          Giải đúng bài toán bằng thẻ tối ưu để chiến thắng. Chọn sai thì bị phạt, và sau trận bạn được giải thích lý do.</p>
+        <div class="features">
+          <div><b>🃏 Xây bộ bài</b>24 thẻ: Stack, Queue, BFS, Dijkstra, DP, Heap…</div>
+          <div><b>🧩 Thử thách</b>Giải đố theo chủ đề để mở khoá thẻ mới</div>
+          <div><b>🎬 Replay</b>Xem lại từng nước đi để học từ quyết định của mình</div>
+          <div><b>🤖 AI 3 mức</b>Ngẫu nhiên, tham lam, tìm kiếm DFS</div>
+          <div><b>📚 Tutorial</b>Lý thuyết ngắn gọn rồi thực hành ngay</div>
+          <div><b>🏆 Xếp hạng</b>Điểm theo độ khó và Insight</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="tabs"><button id="tabLogin" class="on">Đăng nhập</button><button id="tabReg">Đăng ký</button></div>
+        <form id="authForm">
+          <label>Tên đăng nhập</label><input id="u" autocomplete="username" required minlength="3" maxlength="32">
+          <label>Mật khẩu</label><input id="p" type="password" autocomplete="current-password" required minlength="6">
+          <div id="p2wrap" class="hidden"><label>Nhập lại mật khẩu</label><input id="p2" type="password" autocomplete="new-password"></div>
+          <div class="err" id="authErr"></div>
+          <button class="btn primary" style="width:100%" id="authBtn">Đăng nhập</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Người dùng: dashboard ============ -->
+  <section id="home" class="hidden">
+    <div class="grid g2">
+      <div class="card">
+        <div class="row"><h2 id="hello">Xin chào</h2><span class="spacer"></span><span id="rolePill"></span></div>
+        <div class="row muted">Cấp <b id="lvl" style="color:var(--text);margin:0 6px">1</b> · <span id="xpText"></span></div>
+        <div class="bar"><i id="xpBar" style="width:0"></i></div>
+        <div class="grid g4" style="margin-top:14px">
+          <div class="stat"><b id="sPts">0</b><span>Điểm xếp hạng</span></div>
+          <div class="stat"><b id="sW">0</b><span>Thắng</span></div>
+          <div class="stat"><b id="sL">0</b><span>Thua</span></div>
+          <div class="stat"><b id="sAcc">0%</b><span>Độ chính xác lựa chọn</span></div>
+        </div>
+        <div class="row" style="margin-top:20px">
+          <a class="btn primary big" href="/play/">▶ Vào game</a>
+          <span class="muted" style="font-size:13px">Game chạy trên trình duyệt (Pygame + WebAssembly). Lần đầu tải mất khoảng 10–20 giây.</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Tiến trình học</h3>
+        <div class="muted" style="font-size:13px">Thử thách đã hoàn thành</div>
+        <div class="bar"><i id="pzBar"></i></div><div id="pzText" class="muted" style="font-size:13px"></div>
+        <div class="muted" style="font-size:13px;margin-top:10px">Bài hướng dẫn đã học</div>
+        <div class="bar"><i id="tuBar"></i></div><div id="tuText" class="muted" style="font-size:13px"></div>
+        <div class="muted" style="font-size:13px;margin-top:10px">Thẻ đã mở khoá</div>
+        <div class="bar"><i id="ulBar"></i></div><div id="ulText" class="muted" style="font-size:13px"></div>
+        <details style="margin-top:14px"><summary class="muted" style="cursor:pointer">Đổi mật khẩu</summary>
+          <input id="oldPw" type="password" placeholder="Mật khẩu cũ"><input id="newPw" type="password" placeholder="Mật khẩu mới (≥ 6 ký tự)">
+          <button class="btn sm" id="pwBtn">Cập nhật</button> <span id="pwMsg" class="muted"></span>
+        </details>
+      </div>
+    </div>
+    <div class="card" style="margin-top:20px">
+      <h3>Trận đấu gần đây</h3>
+      <table><thead><tr><th>#</th><th>Thời gian</th><th>Độ khó</th><th>Kết quả</th><th>Lượt</th><th>Chính xác</th><th>Insight</th><th>+Điểm</th><th></th></tr></thead>
+      <tbody id="myMatches"></tbody></table>
+    </div>
+  </section>
+
+  <section id="board" class="hidden">
+    <div class="card"><h2>🏆 Bảng xếp hạng</h2>
+      <p class="muted">Điểm = điểm theo độ khó (Dễ 10 · Thường 20 · Khó 35) + Insight khi thắng. Insight đến từ việc giải bài toán bằng thẻ tối ưu.</p>
+      <table><thead><tr><th>Hạng</th><th>Người chơi</th><th>Cấp</th><th>Điểm</th><th>Thắng</th><th>Thua</th><th>Chính xác TB</th></tr></thead><tbody id="lb"></tbody></table>
+    </div>
+  </section>
+
+  <section id="library" class="hidden">
+    <div class="card"><h2>📚 Thư viện thẻ</h2>
+      <p class="muted">Chi phí năng lượng được thiết kế tỉ lệ với độ phức tạp của thuật toán. Thẻ mờ là thẻ bạn chưa mở khoá.</p>
+      <div class="cards" id="lib"></div>
+    </div>
+  </section>
+</main>
+
+<script src="/static/api.js"></script>
+<script>
+let ME = null, CAT = null, mode = "login";
+const views = ["home", "board", "library"];
+
+function show(view) {
+  if (!ME && view === "home") view = "guest";
+  ["guest", ...views].forEach(v => $("#" + v).classList.toggle("hidden", v !== view));
+  document.querySelectorAll("#nav a[data-view]").forEach(a => a.classList.toggle("active", a.dataset.view === view || (view === "guest" && a.dataset.view === "home")));
+  if (view === "board") loadBoard();
+  if (view === "library") loadLibrary();
+}
+document.querySelectorAll("#nav a[data-view]").forEach(a => a.onclick = () => show(a.dataset.view));
+
+function setMode(m) {
+  mode = m;
+  $("#tabLogin").classList.toggle("on", m === "login");
+  $("#tabReg").classList.toggle("on", m === "register");
+  $("#p2wrap").classList.toggle("hidden", m === "login");
+  $("#authBtn").textContent = m === "login" ? "Đăng nhập" : "Tạo tài khoản";
+  $("#authErr").textContent = "";
+}
+$("#tabLogin").onclick = () => setMode("login");
+$("#tabReg").onclick = () => setMode("register");
+$("#authForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const username = $("#u").value.trim(), password = $("#p").value;
+  if (mode === "register" && password !== $("#p2").value) { $("#authErr").textContent = "Mật khẩu nhập lại không khớp"; return; }
+  try {
+    const r = await API.post("/api/auth/" + (mode === "login" ? "login" : "register"), { username, password });
+    API.setToken(r.token); ME = r.user; render(); show("home");
+  } catch (err) { $("#authErr").textContent = err.message; }
+};
+
+function renderHeader() {
+  if (!ME) { $("#who").innerHTML = ""; $("#navAdmin").classList.add("hidden"); return; }
+  $("#who").innerHTML = `${esc(ME.username)} · <a id="logout" style="cursor:pointer">Đăng xuất</a>`;
+  $("#logout").onclick = () => { API.setToken(""); ME = null; render(); show("guest"); };
+  $("#navAdmin").classList.toggle("hidden", ME.role !== "admin");
+}
+
+async function render() {
+  renderHeader();
+  if (!ME) return;
+  if (!CAT) CAT = await API.get("/api/catalog");
+  $("#hello").textContent = "Xin chào, " + ME.username;
+  $("#rolePill").innerHTML = `<span class="pill ${ME.role}">${ME.role === "admin" ? "Quản trị viên" : "Người chơi"}</span>`;
+  $("#lvl").textContent = ME.level;
+  $("#xpText").textContent = `${ME.xp_in_level}/${ME.xp_per_level} XP tới cấp ${ME.level + 1}`;
+  $("#xpBar").style.width = (100 * ME.xp_in_level / ME.xp_per_level) + "%";
+  $("#sPts").textContent = ME.points; $("#sW").textContent = ME.wins; $("#sL").textContent = ME.losses; $("#sAcc").textContent = ME.accuracy + "%";
+  const nP = CAT.puzzles.length, nT = CAT.tutorials.length, nC = Object.keys(CAT.cards).length;
+  $("#pzBar").style.width = 100 * ME.puzzles_done.length / nP + "%"; $("#pzText").textContent = `${ME.puzzles_done.length}/${nP}`;
+  $("#tuBar").style.width = 100 * ME.tutorials_done.length / nT + "%"; $("#tuText").textContent = `${ME.tutorials_done.length}/${nT}`;
+  $("#ulBar").style.width = 100 * ME.unlocked.length / nC + "%"; $("#ulText").textContent = `${ME.unlocked.length}/${nC}`;
+  const ms = await API.get("/api/matches/mine");
+  $("#myMatches").innerHTML = ms.length ? ms.map(m => `<tr><td>${m.id}</td><td>${fmtDate(m.created_at)}</td><td>${DIFF[m.difficulty]}</td>
+    <td>${resultPill(m.winner)}${m.surrender ? ' <span class="muted">(đầu hàng)</span>' : ""}</td><td>${m.turns}</td><td>${m.accuracy}%</td><td>${m.insight}</td><td>+${m.points_gain}</td>
+    <td><a class="btn sm" href="/play/#replay=${m.id}">🎬 Replay</a></td></tr>`).join("")
+    : `<tr><td colspan="9" class="muted">Chưa có trận nào. Vào game và đấu với AI nhé!</td></tr>`;
+}
+
+$("#pwBtn").onclick = async () => {
+  try { await API.post("/api/auth/password", { old_password: $("#oldPw").value, new_password: $("#newPw").value });
+    $("#pwMsg").textContent = "Đã đổi mật khẩu"; $("#oldPw").value = $("#newPw").value = ""; }
+  catch (e) { $("#pwMsg").textContent = e.message; }
+};
+
+async function loadBoard() {
+  const rows = await API.get("/api/leaderboard?limit=50");
+  $("#lb").innerHTML = rows.length ? rows.map(r => `<tr><td>${r.rank <= 3 ? ["🥇", "🥈", "🥉"][r.rank - 1] : r.rank}</td><td>${esc(r.username)}</td><td>${r.level}</td>
+    <td><b>${r.points}</b></td><td>${r.wins}</td><td>${r.losses}</td><td>${r.accuracy}%</td></tr>`).join("")
+    : `<tr><td colspan="7" class="muted">Chưa có dữ liệu</td></tr>`;
+}
+
+async function loadLibrary() {
+  if (!CAT) CAT = await API.get("/api/catalog");
+  const un = new Set(ME ? ME.unlocked : []);
+  const how = (c) => c.unlock.map(u => u === "start" ? "có sẵn" : u.startsWith("level:") ? "cấp " + u.split(":")[1] : "thử thách " + u.split(":")[1].toUpperCase()).join(" hoặc ");
+  $("#lib").innerHTML = Object.entries(CAT.cards).map(([id, c]) => `<div class="gc ${ME && !un.has(id) ? "off" : ""}">
+    <div class="cost">${c.cost < 0 ? "X" : c.cost}</div><h4>${esc(c.name)}</h4>
+    <div class="cx">${esc(CAT.categories[c.cat])} · ${esc(c.complexity)}</div>
+    <p>${esc(c.text)}</p><p class="lesson">💡 ${esc(c.lesson)}</p>
+    <p class="lesson">🔓 Mở khoá: ${how(c)}</p></div>`).join("");
+}
+
+(async () => {
+  if (API.token()) { try { ME = await API.get("/api/me"); } catch (e) { ME = null; } }
+  await render();
+  show(ME ? "home" : "guest");
+})();
+</script>
+</body>
+</html>

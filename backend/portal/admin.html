@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quản trị – Algo Arena</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header>
+  <a class="logo" href="/"><span>A</span>Algo Arena</a>
+  <nav><a href="/">Trang chủ</a><a class="active">Quản trị</a></nav>
+  <div class="who" id="who"></div>
+</header>
+<main>
+  <div id="deny" class="card hidden"><h2>Không có quyền truy cập</h2><p class="muted">Trang này chỉ dành cho quản trị viên. <a href="/">Về trang chủ để đăng nhập</a>.</p></div>
+  <div id="app" class="hidden">
+    <div class="grid g4">
+      <div class="stat"><b id="tUsers">–</b><span>Người dùng</span></div>
+      <div class="stat"><b id="tMatches">–</b><span>Trận đấu</span></div>
+      <div class="stat"><b id="tActive">–</b><span>Hoạt động 7 ngày</span></div>
+      <div class="stat"><b id="tTurns">–</b><span>Số lượt TB / trận · thời lượng TB</span></div>
+    </div>
+
+    <div class="grid g2" style="margin-top:20px">
+      <div class="card"><h3>Trận đấu 14 ngày gần nhất</h3><div class="bars" id="perDay"></div></div>
+      <div class="card"><h3>Theo độ khó AI</h3>
+        <table><thead><tr><th>Độ khó</th><th>Số trận</th><th>Tỉ lệ thắng</th><th>Chính xác TB</th></tr></thead><tbody id="byDiff"></tbody></table>
+        <h3 style="margin-top:18px">Sự kiện (analytics)</h3><div id="events" class="muted" style="font-size:13px"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="row"><h3 style="margin:0">Quản lý người dùng</h3><span class="spacer"></span>
+        <input id="q" placeholder="Tìm theo tên…" style="max-width:240px;margin:0"></div>
+      <table style="margin-top:10px"><thead><tr><th>ID</th><th>Tên</th><th>Vai trò</th><th>Trạng thái</th><th>Cấp</th><th>Điểm</th><th>T/B</th><th>Đăng nhập gần nhất</th><th>Thao tác</th></tr></thead>
+      <tbody id="users"></tbody></table>
+    </div>
+
+    <div class="grid g2" style="margin-top:20px">
+      <div class="card"><h3>Cân bằng thẻ (dữ liệu thật)</h3>
+        <p class="muted" style="font-size:13px">Số lần dùng theo đánh giá và tỉ lệ thắng khi thẻ có trong bộ bài người chơi.</p>
+        <table><thead><tr><th>Thẻ</th><th>Tối ưu</th><th>Chưa TƯ</th><th>Bẫy</th><th>Bỏ lỡ</th><th>Trong deck</th><th>Thắng%</th></tr></thead><tbody id="cards"></tbody></table>
+      </div>
+      <div class="card"><h3>Bài toán</h3>
+        <table><thead><tr><th>Bài toán</th><th>Lượt chọn liên quan</th><th>Được giải</th></tr></thead><tbody id="chs"></tbody></table>
+        <h3 style="margin-top:18px">Trận gần đây</h3>
+        <table><thead><tr><th>#</th><th>Người chơi</th><th>Độ khó</th><th>KQ</th><th>Chính xác</th><th></th></tr></thead><tbody id="recent"></tbody></table>
+      </div>
+    </div>
+  </div>
+</main>
+<script src="/static/api.js"></script>
+<script>
+let ME = null;
+async function loadStats() {
+  const s = await API.get("/api/admin/stats");
+  $("#tUsers").textContent = s.total_users; $("#tMatches").textContent = s.total_matches; $("#tActive").textContent = s.active_7d;
+  $("#tTurns").textContent = `${s.avg_turns} · ${Math.round(s.avg_duration_sec / 60)} phút`;
+  const mx = Math.max(1, ...s.matches_per_day.map(d => d.matches));
+  $("#perDay").innerHTML = s.matches_per_day.map(d => `<div><span style="width:80px">${d.date.slice(5)}</span><i style="width:${280 * d.matches / mx}px"></i>${d.matches}</div>`).join("");
+  $("#byDiff").innerHTML = Object.entries(s.by_difficulty).map(([k, v]) => `<tr><td>${DIFF[k]}</td><td>${v.matches}</td><td>${v.win_rate ?? "–"}%</td><td>${v.avg_accuracy ?? "–"}%</td></tr>`).join("");
+  $("#events").innerHTML = Object.entries(s.events).map(([k, v]) => `<span class="pill player" style="margin:2px">${esc(k)}: ${v}</span>`).join("") || "Chưa có";
+  $("#cards").innerHTML = s.cards.sort((a, b) => b.decisions - a.decisions).map(c => `<tr><td>${esc(c.name)}</td><td>${c.optimal}</td><td>${c.acceptable}</td><td>${c.trap}</td><td>${c.missed}</td><td>${c.in_decks}</td><td>${c.win_rate ?? "–"}</td></tr>`).join("");
+  $("#chs").innerHTML = s.challenges.sort((a, b) => b.attempts - a.attempts).map(c => `<tr><td>${esc(c.title)}</td><td>${c.attempts}</td><td>${c.solved}</td></tr>`).join("");
+  const rm = await API.get("/api/admin/matches?limit=15");
+  $("#recent").innerHTML = rm.map(m => `<tr><td>${m.id}</td><td>${esc(m.username)}</td><td>${DIFF[m.difficulty]}</td><td>${resultPill(m.winner)}</td><td>${m.accuracy}%</td><td><a class="btn sm" href="/play/#replay=${m.id}">Replay</a></td></tr>`).join("");
+}
+
+async function loadUsers() {
+  const us = await API.get("/api/admin/users?q=" + encodeURIComponent($("#q").value));
+  $("#users").innerHTML = us.map(u => `<tr data-id="${u.id}">
+    <td>${u.id}</td><td>${esc(u.username)}</td>
+    <td><select data-act="role" style="margin:0;padding:5px;width:auto">
+      <option value="player" ${u.role === "player" ? "selected" : ""}>Người chơi</option>
+      <option value="admin" ${u.role === "admin" ? "selected" : ""}>Quản trị</option></select></td>
+    <td>${u.is_active ? '<span class="pill win">Hoạt động</span>' : '<span class="pill locked">Đã khoá</span>'}</td>
+    <td>${u.level}</td><td>${u.points}</td><td>${u.wins}/${u.losses}</td><td>${fmtDate(u.last_login)}</td>
+    <td class="row"><button class="btn sm" data-act="lock">${u.is_active ? "Khoá" : "Mở khoá"}</button>
+      <button class="btn sm" data-act="pw">Đặt lại MK</button>
+      <button class="btn sm danger" data-act="del">Xoá</button></td></tr>`).join("");
+}
+
+$("#users").addEventListener("click", async (e) => {
+  const act = e.target.dataset.act; if (!act || act === "role") return;
+  const tr = e.target.closest("tr"), id = tr.dataset.id;
+  try {
+    if (act === "lock") await API.patch(`/api/admin/users/${id}`, { is_active: e.target.textContent !== "Khoá" });
+    if (act === "pw") { const pw = prompt("Mật khẩu mới (≥ 6 ký tự):"); if (!pw) return; await API.patch(`/api/admin/users/${id}`, { new_password: pw }); }
+    if (act === "del") { if (!confirm("Xoá người dùng này cùng toàn bộ trận đấu và bộ bài?")) return; await API.del(`/api/admin/users/${id}`); }
+    toast("Đã cập nhật"); loadUsers();
+  } catch (err) { toast(err.message); }
+});
+$("#users").addEventListener("change", async (e) => {
+  if (e.target.dataset.act !== "role") return;
+  const id = e.target.closest("tr").dataset.id;
+  try { await API.patch(`/api/admin/users/${id}`, { role: e.target.value }); toast("Đã đổi vai trò"); }
+  catch (err) { toast(err.message); loadUsers(); }
+});
+let t; $("#q").oninput = () => { clearTimeout(t); t = setTimeout(loadUsers, 300); };
+
+(async () => {
+  try { ME = await API.get("/api/me"); } catch (e) {}
+  if (!ME || ME.role !== "admin") { $("#deny").classList.remove("hidden"); return; }
+  $("#who").textContent = ME.username + " (quản trị)";
+  $("#app").classList.remove("hidden");
+  loadStats(); loadUsers();
+})();
+</script>
+</body>
+</html>

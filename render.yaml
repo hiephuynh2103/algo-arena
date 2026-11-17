@@ -1,0 +1,20 @@
+# Render Blueprint: một web service duy nhất phục vụ API + portal + game (/play)
+services:
+  - type: web
+    name: algo-arena
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && (python tools/build_web.py || echo "Dùng bản build sẵn trong game/build/web")
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DATABASE_URL
+        sync: false          # dán chuỗi kết nối Supabase (Session pooler) khi tạo service
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
