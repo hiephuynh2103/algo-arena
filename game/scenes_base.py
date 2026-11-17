@@ -42,7 +42,17 @@ class App:
     # ------------------------------------------------------------ điều hướng & async
     def go(self, scene):
         self.scene = scene
+        self.fade = 1.0
         scene.enter()
+
+    def draw_fade(self, surf, dt):
+        f = getattr(self, "fade", 0)
+        if f > 0:
+            s = pygame.Surface((W, H))
+            s.fill((10, 5, 2))
+            s.set_alpha(int(255 * f))
+            surf.blit(s, (0, 0))
+            self.fade = max(0.0, f - dt * 4)
 
     def spawn(self, coro, ok=None, err=None):
         async def run():
@@ -76,11 +86,12 @@ class App:
             if t[2] <= 0:
                 self.toasts.remove(t)
                 continue
-            w = ui.font(15, True).size(t[0])[0] + 30
-            r = pygame.Rect(W - w - 20, y, w, 40)
-            panel(surf, r, (20, 27, 48), t[1], 10, 2)
-            text(surf, t[0], r.center, 15, TEXT, True, center=True)
-            y -= 48
+            w = ui.text_size(t[0], 15, 2)[0] + 44
+            r = pygame.Rect(W - w - 20, y, w, 42)
+            panel(surf, r, (43, 25, 13), accent=t[1], radius=12, width=2)
+            pygame.draw.circle(surf, t[1], (r.x + 18, r.centery), 5)
+            text(surf, t[0], (r.x + 30, r.centery - 11), 15, TEXT, 2)
+            y -= 52
 
 
 class Scene:
@@ -104,20 +115,13 @@ class Scene:
         self.t += dt
 
     def draw_bg(self, surf):
-        surf.fill(BG)
-        # vài "nút đồ thị" trang trí
-        for i in range(14):
-            x = (i * 97 + int(self.t * 6)) % (W + 80) - 40
-            y = 40 + (i * 53) % (H - 80)
-            pygame.draw.circle(surf, (22, 30, 54), (x, y), 4)
-            x2 = ((i + 3) * 97 + int(self.t * 6)) % (W + 80) - 40
-            y2 = 40 + ((i + 3) * 53) % (H - 80)
-            if abs(x2 - x) < 300:
-                pygame.draw.line(surf, (20, 27, 48), (x, y), (x2, y2), 1)
+        ui.draw_background(surf, self.t)
 
     def draw_header(self, surf, back=True):
         if self.title:
-            text(surf, self.title, (W // 2, 34), 26, TEXT, True, center=True)
+            text(surf, self.title, (W // 2, 36), 28, TEXT, 3, center=True, shadow=True)
+            tw = ui.text_size(self.title, 28, 3)[0]
+            pygame.draw.line(surf, ACCENT, (W // 2 - tw // 2, 58), (W // 2 + tw // 2, 58), 2)
 
     def draw(self, surf):
         self.draw_bg(surf)
@@ -126,5 +130,5 @@ class Scene:
             b.draw(surf)
 
 
-def back_button(app, target_factory, label="◀ Menu"):
-    return Button((20, 16, 120, 38), label, lambda: app.go(target_factory()), kind="ghost", size=15)
+def back_button(app, target_factory, label="Menu"):
+    return Button((20, 16, 124, 40), label, lambda: app.go(target_factory()), kind="ghost", size=15, icon_name="back")

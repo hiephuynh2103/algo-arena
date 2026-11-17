@@ -35,7 +35,7 @@ class DeckScene(Scene):
         self.buttons = [back_button(a, lambda: MenuScene(a))]
         cats = [(None, "Tất cả")] + list(CATEGORY_LABEL.items())
         for i, (k, lab) in enumerate(cats):
-            b = Button((GRID_X + i * 140, 70, 132, 36), lab, lambda k=k: self.set_filter(k), size=13)
+            b = Button((GRID_X + i * 142, 72, 134, 36), lab, lambda k=k: self.set_filter(k), "ghost", size=13)
             b.cat = k
             self.buttons.append(b)
         self.buttons += [
@@ -139,12 +139,11 @@ class DeckScene(Scene):
         super().draw(surf)
         for b in self.buttons:
             if hasattr(b, "cat"):
-                if b.cat == self.filter:
-                    pygame.draw.rect(surf, ACCENT, b.rect, 2, border_radius=10)
+                b.kind = "primary" if b.cat == self.filter else "ghost"
         vis = self.visible()
         un = self.app.unlocked
         clip = surf.get_clip()
-        surf.set_clip(pygame.Rect(0, GRID_Y - 12, 880, H - GRID_Y + 12))
+        surf.set_clip(pygame.Rect(0, GRID_Y - 14, 880, H - GRID_Y + 14))
         for i, cid in enumerate(vis):
             r = self.grid_rect(i)
             if r.bottom < GRID_Y - 12 or r.y > H:
@@ -152,26 +151,27 @@ class DeckScene(Scene):
             n = self.deck.count(cid)
             badge = (f"{n}/{MAX_COPIES}", GOLD) if n else None
             ui.draw_card(surf, r, cid, playable=cid in un, locked=cid not in un, compact=True, badge=badge,
-                         highlight=self.hover == cid)
-            if cid in un:
-                text_box(surf, CARDS[cid]["text"], (r.x + 8, r.y + 76, r.w - 16, r.h - 80), 10, (225, 230, 245))
+                         highlight=self.hover == cid, lift=4 if self.hover == cid else 0)
         surf.set_clip(clip)
 
         # Bộ bài hiện tại
         R = pygame.Rect(890, 70, 380, 520)
-        panel(surf, R)
+        panel(surf, R, (40, 22, 11), radius=16)
         n = len(self.deck)
-        text(surf, "Bộ bài của bạn", (R.x + 14, R.y + 14), 18, TEXT, True)
-        text(surf, f"{n}/{DECK_SIZE}", (R.right - 14, R.y + 14), 18, GREEN if n == DECK_SIZE else GOLD, True, right=True)
-        text(surf, "Bấm thẻ bên trái để thêm, bấm dòng bên dưới để bỏ", (R.x + 14, R.y + 46), 11, MUTED)
+        text(surf, "Bộ bài của bạn", (R.x + 16, R.y + 14), 18, TEXT, 3)
+        ui.chip(surf, f"{n}/{DECK_SIZE}", (R.right - 70, R.y + 14), GREEN if n == DECK_SIZE else GOLD, 13, filled=True)
+        text(surf, "Bấm thẻ bên trái để thêm, bấm dòng bên dưới để bỏ", (R.x + 16, R.y + 44), 11, MUTED)
         mp = pygame.mouse.get_pos()
         for cid, r in self.deck_rows():
             c = CARDS[cid]
-            panel(surf, r, ui.CAT_COLOR[c["cat"]] if r.collidepoint(mp) else PANEL2, LINE, 8)
-            pygame.draw.circle(surf, ACCENT2, (r.x + 16, r.centery), 11)
-            text(surf, card_cost_label(cid), (r.x + 16, r.centery), 12, (10, 12, 20), True, center=True)
-            text(surf, c["name"], (r.x + 34, r.y + 5), 14, TEXT)
-            text(surf, f"×{self.deck.count(cid)}", (r.right - 12, r.y + 5), 14, GOLD, True, right=True)
+            hov = r.collidepoint(mp)
+            cc = ui.CAT_COLOR[c["cat"]]
+            pygame.draw.rect(surf, ui.darken(cc, .35) if hov else (49, 29, 16), r, border_radius=8)
+            pygame.draw.rect(surf, cc, (r.x, r.y + 4, 4, r.h - 8), border_radius=2)
+            pygame.draw.circle(surf, ACCENT2, (r.x + 20, r.centery), 10)
+            text(surf, card_cost_label(cid), (r.x + 20, r.centery), 12, (23, 10, 6), 3, center=True)
+            text(surf, c["name"], (r.x + 38, r.centery - 10), 14, TEXT, 1)
+            text(surf, "bỏ" if hov else f"×{self.deck.count(cid)}", (r.right - 12, r.centery - 10), 14, RED if hov else GOLD, 3, right=True)
         # đường cong năng lượng
         curve = [0] * 6
         for cid in self.deck:
@@ -180,7 +180,8 @@ class DeckScene(Scene):
         text(surf, "Phân bố chi phí", (bx, by - 70), 11, MUTED)
         for k, v in enumerate(curve):
             h = v * 6
-            pygame.draw.rect(surf, ACCENT2, (bx + k * 30, by - h - 14, 22, h), border_radius=3)
+            if h:
+                surf.blit(ui.vgradient(22, h, (*ui.lighten(ACCENT2, .3), 255), (*ACCENT2, 255), 3), (bx + k * 30, by - h - 14))
             text(surf, "X" if k == 0 and any(CARDS[c]["cost"] < 0 for c in self.deck) else str(k), (bx + k * 30 + 11, by - 6), 10, MUTED, center=True)
         if self.msg:
             text_box(surf, self.msg, (R.x + 196, R.bottom - 92, 176, 86), 12, RED)

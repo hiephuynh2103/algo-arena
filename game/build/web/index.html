@@ -434,6 +434,15 @@ frameborder="1"
 
     </script>
 
-<style>html,body{background:#0d1220 !important}</style>
+<style>
+html,body{background:#080c1a !important;margin:0;overflow:hidden}
+canvas#canvas{
+  width:min(100vw, calc(100vh * 16 / 9)) !important;
+  height:min(100vh, calc(100vw * 9 / 16)) !important;
+  top:50% !important; left:50% !important; right:auto !important; bottom:auto !important;
+  transform:translate(-50%,-50%) !important; margin:0 !important;
+  image-rendering:auto; border-radius:0;
+}
+</style>
 </body>
 </html>

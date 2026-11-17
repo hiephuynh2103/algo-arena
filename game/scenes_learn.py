@@ -1,7 +1,7 @@
 import pygame
 
 import ui
-from ui import W, H, text, text_box, panel, Button, TEXT, MUTED, ACCENT, ACCENT2, GOLD, RED, GREEN, LINE, PANEL, PANEL2
+from ui import W, H, text, text_box, panel, chip, icon, Button, TEXT, MUTED, ACCENT, ACCENT2, GOLD, RED, GREEN, ORANGE, LINE, PANEL, PANEL2
 from scenes_base import Scene, back_button
 from engine import CARDS, Game, PUZZLES, TUTORIALS
 from engine.puzzles import PUZZLE_BY_ID
@@ -45,15 +45,24 @@ class PuzzleListScene(Scene):
         mp = pygame.mouse.get_pos()
         for i, (pz, r) in enumerate(self.rows):
             ok = pz["id"] in done
-            panel(surf, r, PANEL2 if r.collidepoint(mp) else PANEL, GREEN if ok else (ACCENT if r.collidepoint(mp) else LINE), 14, 2 if ok else 1)
-            text(surf, f"{pz['id'].upper()} · {pz['topic']}", (r.x + 20, r.y + 14), 13, GOLD, True)
+            hov = r.collidepoint(mp)
+            col = GREEN if ok else ORANGE
+            if hov:
+                surf.blit(ui.glow(r.w, r.h, col, 16, 16, 120), (r.x - 16, r.y - 16))
+            panel(surf, r, (45, 25, 13), accent=col if (ok or hov) else None, radius=16, width=2 if hov else 1)
+            num = pygame.Rect(r.x + 20, r.y + 20, 54, 54)
+            surf.blit(ui.vgradient(54, 54, (*ui.lighten(col, .1), 255), (*ui.darken(col, .4), 255), 14), num)
             if ok:
-                text(surf, "✔ Đã hoàn thành", (r.right - 20, r.y + 14), 13, GREEN, True, right=True)
-            text(surf, pz["title"], (r.x + 20, r.y + 40), 21, TEXT, True)
-            text_box(surf, pz["goal"], (r.x + 20, r.y + 76, r.w - 40, 44), 14, (205, 213, 234))
+                icon(surf, "check", num.center, 30, (255, 255, 255))
+            else:
+                text(surf, pz["id"][1:], num.center, 24, (255, 255, 255), 3, center=True)
+            chip(surf, pz["topic"].upper(), (r.x + 90, r.y + 20), col, 10)
+            text(surf, pz["title"], (r.x + 90, r.y + 44), 20, TEXT, 3)
+            text_box(surf, pz["goal"], (r.x + 20, r.y + 88, r.w - 40, 44), 14, (205, 213, 234))
             names = ", ".join(CARDS[c]["name"] for c in pz["unlocks"])
-            text(surf, "Phần thưởng: mở khoá " + names + " · +40 XP", (r.x + 20, r.bottom - 34), 13, ACCENT)
-        text(surf, "Mỗi thử thách phải hạ đối thủ trong MỘT lượt. Có nút Gợi ý nếu bí.", (W // 2, H - 26), 13, MUTED, center=True)
+            icon(surf, "bolt", (r.x + 28, r.bottom - 25), 16, ACCENT)
+            text(surf, "Mở khoá: " + names + "  ·  +40 XP", (r.x + 42, r.bottom - 34), 13, ACCENT, 2)
+        text(surf, "Mỗi thử thách phải hạ đối thủ trong MỘT lượt. Có nút Gợi ý nếu bí.", (W // 2, H - 24), 13, MUTED, center=True)
 
 
 class TutorialScene(Scene):
@@ -66,12 +75,12 @@ class TutorialScene(Scene):
         self.buttons = [back_button(self.app, lambda: MenuScene(self.app))]
         self.side = []
         for i, t in enumerate(TUTORIALS):
-            b = Button((30, 90 + i * 64, 300, 54), t["title"], lambda i=i: self.select(i), size=15)
+            b = Button((30, 90 + i * 64, 300, 54), t["title"], lambda i=i: self.select(i), "ghost", size=15)
             b.idx = i
             self.side.append(b)
-        self.prev_b = Button((370, 630, 140, 46), "◀ Trước", lambda: self.turn(-1))
-        self.next_b = Button((1110, 630, 140, 46), "Tiếp ▶", lambda: self.turn(1), "primary")
-        self.prac_b = Button((830, 630, 270, 46), "Thực hành ngay →", self.practice, "primary")
+        self.prev_b = Button((370, 632, 140, 46), "Trước", lambda: self.turn(-1), icon_name="prev")
+        self.next_b = Button((1110, 632, 140, 46), "Tiếp", lambda: self.turn(1), "primary", icon_name="next")
+        self.prac_b = Button((834, 632, 266, 46), "Thực hành ngay", self.practice, "gold", icon_name="puzzle")
         self.buttons += self.side + [self.prev_b, self.next_b, self.prac_b]
 
     def select(self, i):
@@ -107,7 +116,7 @@ class TutorialScene(Scene):
         self.draw_header(surf)
         done = set(self.app.user["tutorials_done"]) if self.app.user else set()
         for b in self.side:
-            b.kind = "primary" if b.idx == self.sel else "normal"
+            b.kind = "primary" if b.idx == self.sel else "ghost"
         n = len(self.tut["pages"])
         self.prev_b.enabled = self.page > 0
         self.next_b.enabled = self.page < n - 1
@@ -118,16 +127,17 @@ class TutorialScene(Scene):
             b.draw(surf)
         for b in self.side:
             if TUTORIALS[b.idx]["id"] in done:
-                text(surf, "✔", (b.rect.right - 20, b.rect.centery), 16, GREEN if b.idx != self.sel else (6, 32, 28), True, center=True)
+                icon(surf, "check", (b.rect.right - 22, b.rect.centery), 18, GREEN if b.idx != self.sel else (21, 27, 3))
         R = pygame.Rect(360, 80, 900, 536)
-        panel(surf, R)
+        panel(surf, R, (40, 22, 11), radius=18)
         title, lines = self.tut["pages"][self.page]
-        text(surf, self.tut["title"].upper(), (R.x + 36, R.y + 28), 13, GOLD, True)
-        text(surf, title, (R.x + 36, R.y + 52), 30, TEXT, True)
-        y = R.y + 120
+        chip(surf, self.tut["title"].upper(), (R.x + 36, R.y + 28), GOLD, 11)
+        text(surf, title, (R.x + 36, R.y + 60), 32, TEXT, 3)
+        y = R.y + 128
         for ln in lines:
-            pygame.draw.circle(surf, ACCENT, (R.x + 46, y + 12), 5)
-            y = text_box(surf, ln, (R.x + 64, y, R.w - 110, 120), 19, (220, 226, 242)) + 16
+            pygame.draw.circle(surf, ACCENT, (R.x + 46, y + 13), 6)
+            pygame.draw.circle(surf, (23, 17, 4), (R.x + 46, y + 13), 2)
+            y = text_box(surf, ln, (R.x + 66, y, R.w - 110, 120), 19, (222, 228, 244)) + 18
         for k in range(n):
             pygame.draw.circle(surf, ACCENT if k == self.page else LINE, (R.centerx - (n - 1) * 12 + k * 24, R.bottom - 24), 6)
         text(surf, f"Trang {self.page + 1}/{n}", (R.right - 24, R.bottom - 32), 13, MUTED, right=True)

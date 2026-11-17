@@ -1,9 +1,10 @@
+import math
 import time
 
 import pygame
 
 import ui
-from ui import (W, H, text, text_box, panel, bar, Button, Floating, TEXT, MUTED, ACCENT, ACCENT2, GOLD, RED,
+from ui import (W, H, text, text_box, panel, bar, chip, icon, Button, Floating, TEXT, MUTED, ACCENT, ACCENT2, GOLD, RED,
                 GREEN, ORANGE, BLUE, LINE, PANEL, PANEL2, RATING_COLOR, RATING_LABEL)
 from scenes_base import Scene
 from engine import CARDS, CHALLENGES, Game, replay, choose_action, card_cost_label
@@ -17,7 +18,7 @@ CARD_W, CARD_H = 140, 200
 ENEMY_RECT = pygame.Rect(20, 14, 560, 112)
 CHAL_RECT = pygame.Rect(20, 140, 560, 220)
 PLAYED_RECT = pygame.Rect(596, 140, 290, 312)
-PLAYER_RECT = pygame.Rect(20, 372, 560, 80)
+PLAYER_RECT = pygame.Rect(20, 370, 560, 104)
 LOG_RECT = pygame.Rect(900, 14, 360, 384)
 
 
@@ -51,6 +52,9 @@ class BattleScene(Scene):
         self.step = 0
         self.autoplay = False
         self.auto_t = 0
+        self.hp_disp = [p.hp for p in game.players]
+        self.hover_k = {}
+        self.dt = 1 / 60
 
     def enter(self):
         self.build_buttons()
@@ -64,22 +68,22 @@ class BattleScene(Scene):
         self.buttons = []
         bx, by = 900, 408
         if self.mode == "ai":
-            self.end_btn = Button((bx, by, 220, 56), "Kết thúc lượt ▶", self.end_turn, "primary", 18)
-            self.buttons += [self.end_btn, Button((bx + 230, by, 130, 56), "Đầu hàng", self.surrender, "danger", 15)]
+            self.end_btn = Button((bx, by, 226, 56), "Kết thúc lượt", self.end_turn, "primary", 18, icon_name="next")
+            self.buttons += [self.end_btn, Button((bx + 236, by, 124, 56), "Đầu hàng", self.surrender, "danger", 15, icon_name="flag")]
         elif self.mode == "puzzle":
             self.end_btn = Button((bx, by, 170, 56), "Kết thúc lượt", self.end_turn, "primary", 16)
             self.buttons += [self.end_btn,
-                             Button((bx + 178, by, 88, 56), "Gợi ý", self.toggle_hint, size=15),
+                             Button((bx + 178, by, 88, 56), "Gợi ý", self.toggle_hint, "gold", 15),
                              Button((bx + 272, by, 88, 56), "Làm lại", self.restart, size=15)]
         else:
             self.buttons += [
-                Button((bx, by, 64, 56), "|◀", lambda: self.goto(0), size=16),
-                Button((bx + 72, by, 64, 56), "◀", lambda: self.goto(self.step - 1), size=16),
+                Button((bx, by, 64, 56), "", lambda: self.goto(0), size=16, icon_name="first"),
+                Button((bx + 72, by, 64, 56), "", lambda: self.goto(self.step - 1), size=16, icon_name="prev"),
                 Button((bx + 144, by, 72, 56), "Chạy", self.toggle_auto, "primary", 15),
-                Button((bx + 224, by, 64, 56), "▶", lambda: self.goto(self.step + 1), size=16),
-                Button((bx + 296, by, 64, 56), "▶|", lambda: self.goto(len(self.rd["actions"])), size=16),
+                Button((bx + 224, by, 64, 56), "", lambda: self.goto(self.step + 1), size=16, icon_name="next"),
+                Button((bx + 296, by, 64, 56), "", lambda: self.goto(len(self.rd["actions"])), size=16, icon_name="last"),
             ]
-        self.buttons.append(Button((W - 110, H - 46, 96, 34), "Thoát", self.quit, "ghost", 14))
+        self.buttons.append(Button((W - 116, H - 44, 100, 34), "Thoát", self.quit, "ghost", 13, icon_name="back"))
 
     def quit(self):
         from scenes_menu import MenuScene
@@ -166,6 +170,9 @@ class BattleScene(Scene):
     # ------------------------------------------------------------ vòng lặp
     def update(self, dt):
         super().update(dt)
+        self.dt = dt
+        for i, p in enumerate(self.g.players):
+            self.hp_disp[i] += (p.hp - self.hp_disp[i]) * min(1, dt * 6)
         self.floats = [f for f in self.floats if f.update(dt)]
         if self.banner:
             self.banner[1] -= dt
@@ -254,7 +261,8 @@ class BattleScene(Scene):
         step = CARD_W + gap
         if total > W - 40:
             step = (W - 40 - CARD_W) // max(1, n - 1)
-        return [pygame.Rect(x0 + i * step, HAND_Y, CARD_W, CARD_H) for i in range(n)]
+        mid = (n - 1) / 2
+        return [pygame.Rect(x0 + i * step, HAND_Y + 4 + int(abs(i - mid) ** 2 * 2), CARD_W, CARD_H) for i in range(n)]
 
     def handle(self, e):
         if self.overlay and e.type == pygame.MOUSEBUTTONDOWN:
@@ -294,39 +302,62 @@ class BattleScene(Scene):
         return False
 
     # ------------------------------------------------------------ vẽ
-    def draw_status(self, surf, rect, p, enemy):
-        panel(surf, rect)
-        x, y = rect.x + 16, rect.y + 10
-        text(surf, p.name, (x, y), 18, TEXT, True)
-        bar(surf, (x, y + 30, 260, 16), p.hp / p.max_hp, GREEN if p.hp > 10 else RED)
-        text(surf, f"{max(p.hp, 0)}/{p.max_hp}", (x + 130, y + 38), 12, (10, 12, 20), True, center=True)
+    # ------------------------------------------------------------ vẽ
+    def draw_status(self, surf, rect, p, idx, enemy):
+        col = (255, 120, 120) if enemy else ACCENT
+        active = self.g.current == idx and not self.g.over
+        if active and self.mode != "replay":
+            surf.blit(ui.glow(rect.w, rect.h, col, 14, 14, 110), (rect.x - 14, rect.y - 14))
+        panel(surf, rect, (43, 24, 12), accent=ui.mix((120, 90, 50), col, .6 if active else .2), radius=14,
+              width=2 if active else 1)
+        x, y = rect.x + 14, rect.y + 12
+        # avatar
+        av = pygame.Rect(x, y, 52, 52)
+        surf.blit(ui.vgradient(52, 52, (*ui.lighten(col, .1), 255), (*ui.darken(col, .45), 255), 14), av)
+        if enemy:
+            icon(surf, "bolt", av.center, 30, (255, 255, 255))
+        else:
+            text(surf, p.name[:1].upper(), av.center, 26, (23, 17, 4), 3, center=True)
+        nx = x + 66
+        text(surf, p.name, (nx, y - 2), 17, TEXT, 3)
+        # máu
+        hp = max(0, self.hp_disp[idx])
+        hcol = GREEN if p.hp > 15 else (GOLD if p.hp > 8 else RED)
+        bar(surf, (nx, y + 26, 230, 18), hp / p.max_hp, hcol)
+        text(surf, f"{max(p.hp, 0)} / {p.max_hp}", (nx + 115, y + 35), 12, (255, 255, 255), 3, center=True, shadow=True)
         if p.block:
-            pygame.draw.rect(surf, BLUE, (x + 268, y + 26, 54, 24), border_radius=6)
-            text(surf, f"⛨ {p.block}", (x + 295, y + 38), 14, (8, 20, 40), True, center=True)
+            sx = nx + 240
+            icon(surf, "shield", (sx + 13, y + 34), 30, (90, 170, 255))
+            text(surf, p.block, (sx + 13, y + 33), 13, (31, 17, 4), 3, center=True)
         # năng lượng
-        ex = x + 336
-        text(surf, "Năng lượng", (ex, y + 2), 11, MUTED)
-        for k in range(p.max_energy):
-            pygame.draw.circle(surf, ACCENT2 if k < p.energy else (40, 48, 80), (ex + 8 + k * 22, y + 32), 8)
+        ex = rect.right - 14 - 8 * 22
+        text(surf, f"NĂNG LƯỢNG {p.energy}/{p.max_energy}", (rect.right - 14, y - 1), 10, MUTED, 3, right=True)
+        for k in range(8):
+            cx, cy = ex + 10 + k * 22, y + 32
+            pts = [(cx + 9 * math.cos(math.pi / 6 + i * math.pi / 3), cy + 9 * math.sin(math.pi / 6 + i * math.pi / 3)) for i in range(6)]
+            if k < p.energy:
+                pygame.draw.polygon(surf, (124, 146, 255), pts)
+                pygame.draw.polygon(surf, (220, 228, 255), pts, 1)
+            elif k < p.max_energy:
+                pygame.draw.polygon(surf, (65, 37, 22), pts)
+                pygame.draw.polygon(surf, (90, 104, 170), pts, 1)
+            else:
+                pygame.draw.polygon(surf, (43, 25, 14), pts, 1)
         # trạng thái
         tags = []
         if p.sorted > 0:
-            tags.append((f"ĐÃ SẮP XẾP ({p.sorted})", ACCENT))
+            tags.append((f"ĐÃ SẮP XẾP · {p.sorted}", ACCENT))
         if p.scheduled:
-            tags.append(("Queue " + str(p.scheduled), GOLD))
-        tags.append((f"Memo {len(p.memo)}", (196, 181, 253)))
-        tags.append((f"Insight {p.insight}", GREEN))
-        if enemy:
-            tags.append((f"Bộ bài {len(p.deck)}", MUTED))
-        tx = x
-        ty = y + 58 if rect.h > 90 else y + 54
-        for lab, col in tags:
-            w = ui.font(11, True).size(lab)[0] + 14
+            tags.append(("QUEUE " + " → ".join(str(v) for v in p.scheduled), GOLD))
+        tags.append((f"MEMO {len(p.memo)}", (196, 181, 253)))
+        tags.append((f"INSIGHT {p.insight}", GREEN))
+        tags.append((f"BỘ BÀI {len(p.deck)}", MUTED))
+        tx, ty = nx, rect.bottom - 30
+        for lab, c in tags:
+            w = ui.text_size(lab, 10, 3)[0] + 16
             if tx + w > rect.right - 10:
                 break
-            pygame.draw.rect(surf, (15, 21, 40), (tx, ty, w, 20), border_radius=10)
-            pygame.draw.rect(surf, col, (tx, ty, w, 20), 1, border_radius=10)
-            text(surf, lab, (tx + w // 2, ty + 10), 11, col, True, center=True)
+            chip(surf, lab, (tx, ty), c, 10)
             tx += w + 6
 
     def draw(self, surf):
@@ -334,121 +365,180 @@ class BattleScene(Scene):
         self.draw_bg(surf)
         me, ai = g.players
         # --- đối thủ
-        self.draw_status(surf, ENEMY_RECT, ai, True)
+        self.draw_status(surf, ENEMY_RECT, ai, 1, True)
         if self.mode == "replay":
+            n = max(1, len(ai.hand))
+            step = min(44, (286 - 40) // max(1, n - 1)) if n > 1 else 0
             for i, cid in enumerate(ai.hand):
-                ui.draw_card(surf, (596 + i * 37, 14, 60, 84), cid, compact=True)
-        else:
-            for i in range(len(ai.hand)):
-                ui.draw_card_back(surf, (600 + i * 34, 24, 46, 64))
-        if self.mode == "puzzle":
-            panel(surf, (596, 14, 290, 112), PANEL)
-            text(surf, "THỬ THÁCH", (612, 24), 12, GOLD, True)
-            text_box(surf, self.puzzle["goal"], (612, 44, 260, 80), 13)
+                r = pygame.Rect(600 + i * step, 22, 40, 58)
+                cc = ui.CAT_COLOR[CARDS[cid]["cat"]]
+                surf.blit(ui.vgradient(40, 58, (*ui.lighten(cc, .1), 255), (*ui.darken(cc, .5), 255), 7), r)
+                pygame.draw.rect(surf, ui.lighten(cc, .3), r, 1, border_radius=7)
+                ui._cat_icon(surf, CARDS[cid]["cat"], (r.centerx, r.centery + 6), 24, (255, 255, 255))
+                text(surf, card_cost_label(cid), (r.x + 9, r.y + 9), 11, (255, 255, 255), 3, center=True)
+            text(surf, f"Tay AI: {len(ai.hand)} thẻ (replay hiện bài mở)", (600, 92), 11, MUTED, 2)
+        elif not self.puzzle:
+            n = len(ai.hand)
+            for i in range(n):
+                ui.draw_card_back(surf, (604 + i * 32, 26 + abs(i - (n - 1) / 2) * 3, 48, 68))
+            text(surf, f"{n} thẻ", (604, 100), 11, MUTED, 2)
+        if self.puzzle:
+            pr = pygame.Rect(596, 14, 290, 112)
+            hint = self.show_hint
+            panel(surf, pr, (44, 36, 14) if hint else (43, 24, 12), accent=GOLD, radius=14)
+            icon(surf, "hint" if hint else "puzzle", (pr.x + 22, pr.y + 22), 18, GOLD)
+            text(surf, "GỢI Ý" if hint else "MỤC TIÊU THỬ THÁCH", (pr.x + 40, pr.y + 13), 11, GOLD, 3)
+            text_box(surf, self.puzzle["hint"] if hint else self.puzzle["goal"], (pr.x + 16, pr.y + 40, pr.w - 30, 66), 13)
 
         # --- bài toán
-        panel(surf, CHAL_RECT, (24, 32, 56), GOLD, 14, 2)
-        text(surf, "BÀI TOÁN", (CHAL_RECT.x + 18, CHAL_RECT.y + 14), 12, GOLD, True)
+        cr = CHAL_RECT
+        surf.blit(ui.glow(cr.w, cr.h, GOLD, 16, 14, 70), (cr.x - 14, cr.y - 14))
+        panel(surf, cr, (34, 32, 40), accent=GOLD, radius=16, width=2)
+        rib = pygame.Rect(cr.x + 16, cr.y - 12, 120, 26)
+        surf.blit(ui.vgradient(rib.w, rib.h, (255, 214, 110, 255), (220, 150, 40, 255), 13), rib)
+        text(surf, "BÀI TOÁN", rib.center, 12, (40, 24, 4), 3, center=True)
         if g.challenge:
             ch = CHALLENGES[g.challenge]
             if not self.puzzle:
                 left = CHALLENGE_LIFETIME - g.challenge_age
-                text(surf, f"hết hạn sau {left} vòng", (CHAL_RECT.right - 18, CHAL_RECT.y + 14), 12, MUTED, right=True)
-            text_box(surf, ch["title"], (CHAL_RECT.x + 18, CHAL_RECT.y + 36, CHAL_RECT.w - 36, 60), 22, TEXT, True)
-            text_box(surf, ch["desc"], (CHAL_RECT.x + 18, CHAL_RECT.y + 100, CHAL_RECT.w - 36, 70), 14, (205, 213, 234))
-            rw = ", ".join({"dmg": f"{v[1]} sát thương", "heal": f"hồi {v[1]}", "draw": f"rút {v[1]}",
-                            "block": f"{v[1]} giáp"}[v[0]] for v in ch["reward"])
-            text(surf, f"Thưởng khi giải tối ưu: {rw} · +2 Insight", (CHAL_RECT.x + 18, CHAL_RECT.bottom - 32), 13, GREEN)
+                for k in range(CHALLENGE_LIFETIME):
+                    pygame.draw.circle(surf, GOLD if k < left else (70, 64, 50), (cr.right - 24 - k * 16, cr.y + 22), 5)
+                text(surf, "còn", (cr.right - 24 - CHALLENGE_LIFETIME * 16 - 4, cr.y + 14), 11, MUTED, right=True)
+            text_box(surf, ch["title"], (cr.x + 20, cr.y + 34, cr.w - 40, 64), 23, TEXT, 3)
+            text_box(surf, ch["desc"], (cr.x + 20, cr.y + 100, cr.w - 40, 66), 14, (214, 220, 236))
+            pygame.draw.line(surf, (90, 80, 50), (cr.x + 20, cr.bottom - 44), (cr.right - 20, cr.bottom - 44))
+            text(surf, "THƯỞNG KHI GIẢI TỐI ƯU", (cr.x + 20, cr.bottom - 32), 10, GOLD, 3)
+            tx = cr.x + 180
+            for v in ch["reward"]:
+                lab = {"dmg": f"{v[1]} sát thương", "heal": f"hồi {v[1]} máu", "draw": f"rút {v[1]} thẻ",
+                       "block": f"{v[1]} giáp"}[v[0]]
+                rr = chip(surf, lab, (tx, cr.bottom - 36), GREEN, 11)
+                tx = rr.right + 6
+            chip(surf, "+2 Insight", (tx, cr.bottom - 36), ACCENT2, 11)
         else:
-            text(surf, "Đã giải xong bài toán!", CHAL_RECT.center, 20, GREEN, True, center=True)
+            icon(surf, "check", (cr.centerx, cr.centery - 14), 44, GREEN)
+            text(surf, "Đã giải xong bài toán!", (cr.centerx, cr.centery + 26), 20, GREEN, 3, center=True)
 
         # --- thẻ vừa chơi
-        panel(surf, PLAYED_RECT)
-        text(surf, "VỪA CHƠI", (PLAYED_RECT.x + 14, PLAYED_RECT.y + 10), 12, MUTED, True)
+        pr = PLAYED_RECT
+        panel(surf, pr, (43, 24, 12), radius=16)
+        text(surf, "VỪA CHƠI", (pr.x + 16, pr.y + 12), 11, MUTED, 3)
         if self.last:
             cid, who, rating, expl = self.last
-            text(surf, g.players[who].name, (PLAYED_RECT.right - 14, PLAYED_RECT.y + 10), 12, ACCENT if who == 0 else RED, True, right=True)
+            chip(surf, g.players[who].name, (pr.right - 16 - ui.text_size(g.players[who].name, 10, 3)[0] - 16, pr.y + 9),
+                 ACCENT if who == 0 else RED, 10)
             badge = (RATING_LABEL[rating], RATING_COLOR[rating]) if RATING_LABEL.get(rating) else None
-            ui.draw_card(surf, (PLAYED_RECT.x + 75, PLAYED_RECT.y + 36, CARD_W, CARD_H - 30), cid, badge=badge)
+            ui.draw_card(surf, (pr.centerx - 66, pr.y + 38, 132, 168), cid, compact=True, badge=badge)
             if expl:
-                text_box(surf, expl, (PLAYED_RECT.x + 12, PLAYED_RECT.y + 214, PLAYED_RECT.w - 24, 96), 12,
-                         RATING_COLOR.get(rating, MUTED))
+                text_box(surf, expl, (pr.x + 14, pr.y + 216, pr.w - 28, 92), 12, ui.lighten(RATING_COLOR.get(rating, MUTED), .2))
+        else:
+            text(surf, "Chưa có thẻ nào được chơi", pr.center, 13, (146, 122, 92), center=True)
 
         # --- người chơi
-        self.draw_status(surf, PLAYER_RECT, me, False)
+        self.draw_status(surf, PLAYER_RECT, me, 0, False)
 
-        # --- log
-        panel(surf, LOG_RECT)
-        text(surf, "NHẬT KÝ TRẬN ĐẤU", (LOG_RECT.x + 14, LOG_RECT.y + 10), 12, MUTED, True)
-        y = LOG_RECT.bottom - 22
-        colors = {"trap": RED, "solve": GREEN, "challenge": GOLD, "play": TEXT, "end": GOLD, "turn": MUTED,
-                  "effect": (160, 172, 200), "warn": ORANGE, "sys": ACCENT}
+        # --- nhật ký
+        lr = LOG_RECT
+        panel(surf, lr, (34, 18, 9), radius=16)
+        text(surf, "NHẬT KÝ TRẬN ĐẤU", (lr.x + 16, lr.y + 12), 11, MUTED, 3)
+        pygame.draw.line(surf, LINE, (lr.x + 14, lr.y + 34), (lr.right - 14, lr.y + 34))
+        y = lr.bottom - 24
+        colors = {"trap": RED, "solve": GREEN, "challenge": GOLD, "play": TEXT, "end": GOLD, "turn": (150, 126, 96),
+                  "effect": (214, 192, 156), "warn": ORANGE, "sys": ACCENT}
+        clip = surf.get_clip()
+        surf.set_clip(pygame.Rect(lr.x, lr.y + 36, lr.w, lr.h - 40))
         for entry in reversed(g.log[-60:]):
-            lines = ui.wrap(entry["text"], 12, LOG_RECT.w - 28)
-            for ln in reversed(lines):
-                if y < LOG_RECT.y + 32:
+            col = colors.get(entry["kind"], TEXT)
+            if entry["kind"] == "play":
+                col = ACCENT if entry["who"] == 0 else (255, 150, 150)
+            bold = 2 if entry["kind"] in ("play", "solve", "challenge", "end") else 0
+            lines = ui.wrap(entry["text"].strip(), 12, lr.w - 44, bold)
+            for j, ln in enumerate(reversed(lines)):
+                if y < lr.y + 36:
                     break
-                col = colors.get(entry["kind"], TEXT)
-                if entry["kind"] == "play":
-                    col = ACCENT if entry["who"] == 0 else (252, 165, 165)
-                text(surf, ln, (LOG_RECT.x + 14, y), 12, col)
+                text(surf, ln, (lr.x + 28, y), 12, col, bold)
+                if j == len(lines) - 1 and entry["kind"] in ("play", "solve", "challenge", "trap", "end"):
+                    pygame.draw.circle(surf, col, (lr.x + 17, y + 8), 3)
                 y -= 17
-            if y < LOG_RECT.y + 32:
+            if y < lr.y + 36:
                 break
+        surf.set_clip(clip)
 
         # --- tay bài
         hand = me.hand
         rects = self.hand_rects(len(hand))
         for i, (cid, r) in enumerate(zip(hand, rects)):
-            rr = r.move(0, -18) if i == self.hover else r
+            k = self.hover_k.get(i, 0.0)
+            k += ((1.0 if i == self.hover else 0.0) - k) * min(1, self.dt * 14)
+            self.hover_k[i] = k
+        order = [i for i in range(len(hand)) if i != self.hover] + ([self.hover] if self.hover is not None and self.hover < len(hand) else [])
+        for i in order:
+            cid, r = hand[i], rects[i]
+            k = self.hover_k.get(i, 0.0)
             playable = self.my_turn() and g.can_play(cid)
             badge = None
             if self.show_hint and self.puzzle and g.challenge:
                 opt, _ = best_answer(g.challenge)
                 if cid == opt:
                     badge = ("GỢI Ý", GOLD)
-            ui.draw_card(surf, rr, cid, playable=playable or self.mode == "replay", highlight=(i == self.hover and playable), badge=badge)
+            ui.draw_card(surf, r, cid, playable=playable or self.mode == "replay", highlight=(i == self.hover and playable),
+                         badge=badge, lift=int(k * 26))
         if not hand:
             text(surf, "(không còn thẻ trên tay)", (W // 2, HAND_Y + 90), 16, MUTED, center=True)
 
         # --- nút & trạng thái lượt
         if self.mode in ("ai", "puzzle"):
             self.end_btn.enabled = self.my_turn()
+            if self.my_turn() and not any(g.can_play(c) for c in hand):
+                r = self.end_btn.rect
+                pulse = int(80 + 70 * math.sin(self.t * 5))
+                surf.blit(ui.glow(r.w, r.h, ACCENT, 12, 18, pulse + 60), (r.x - 18, r.y - 18))
         for b in self.buttons:
             b.draw(surf)
+        sy = 474
         if self.mode == "replay":
-            text(surf, f"Bước {self.step}/{len(self.rd['actions'])} · Lượt {g.turn} · ←/→ để tua", (900, 470), 13, MUTED)
+            text(surf, f"Bước {self.step}/{len(self.rd['actions'])}  ·  Lượt {g.turn}", (900, sy), 13, TEXT, 2)
+            text(surf, "Phím ← → để tua", (1260, sy), 12, MUTED, right=True)
         else:
-            who = "Lượt của bạn" if g.current == 0 else "Máy đang suy nghĩ…"
-            text(surf, f"Lượt {g.turn} · {who}", (900, 470), 13, ACCENT if g.current == 0 else GOLD)
-        if self.show_hint and self.puzzle:
-            panel(surf, (596, 14, 290, 112), (40, 34, 14), GOLD)
-            text_box(surf, "Gợi ý: " + self.puzzle["hint"], (610, 24, 264, 96), 13, GOLD)
+            mine = g.current == 0
+            pygame.draw.circle(surf, ACCENT if mine else GOLD, (906, sy + 9), 5)
+            text(surf, f"Lượt {g.turn}  ·  {'Lượt của bạn' if mine else 'Máy đang suy nghĩ…'}", (918, sy), 13,
+                 ACCENT if mine else GOLD, 2)
 
         if self.hover is not None and self.hover < len(hand):
             r = rects[self.hover]
-            ui.draw_card_detail(surf, (r.x - 80, r.y - 262), hand[self.hover])
+            ui.draw_card_detail(surf, (r.centerx - 160, r.y - 300), hand[self.hover])
 
         for f in self.floats:
             f.draw(surf)
         if self.banner:
-            s = pygame.Surface((W, 90), pygame.SRCALPHA)
-            s.fill((10, 14, 28, 200))
-            surf.blit(s, (0, H // 2 - 120))
-            text(surf, self.banner[0], (W // 2, H // 2 - 75), 38, ACCENT if "BẠN" in self.banner[0] else GOLD, True, center=True)
+            a = min(1.0, self.banner[1] * 3)
+            band = pygame.Surface((W, 110), pygame.SRCALPHA)
+            band.blit(ui.vgradient(W, 110, (18, 8, 3, 0), (18, 8, 3, 0)), (0, 0))
+            for yy in range(110):
+                al = int(220 * a * (1 - abs(yy - 55) / 55) ** .6)
+                pygame.draw.line(band, (8, 12, 28, al), (0, yy), (W, yy))
+            surf.blit(band, (0, H // 2 - 130))
+            col = ACCENT if "BẠN" in self.banner[0] else GOLD
+            pygame.draw.line(surf, col, (W // 2 - 260, H // 2 - 108), (W // 2 + 260, H // 2 - 108), 2)
+            pygame.draw.line(surf, col, (W // 2 - 260, H // 2 - 42), (W // 2 + 260, H // 2 - 42), 2)
+            text(surf, self.banner[0], (W // 2, H // 2 - 75), 40, col, 3, center=True, shadow=True)
         if g.over and self.mode == "replay":
-            text(surf, g._result_text(), (W // 2, H // 2 - 75), 30, GOLD, True, center=True)
+            text(surf, g._result_text(), (W // 2, H // 2 - 75), 32, GOLD, 3, center=True, shadow=True)
         if self.overlay:
             kind, title, body = self.overlay
             s = pygame.Surface((W, H), pygame.SRCALPHA)
-            s.fill((5, 8, 16, 210))
+            s.fill((10, 5, 2, 200))
             surf.blit(s, (0, 0))
-            r = pygame.Rect(W // 2 - 300, H // 2 - 140, 600, 280)
-            panel(surf, r, PANEL, GREEN if kind == "win" else ORANGE, 16, 2)
-            text(surf, title, (r.centerx, r.y + 46), 30, GREEN if kind == "win" else ORANGE, True, center=True)
-            text_box(surf, ("Bài học: " if kind == "win" else "Gợi ý: ") + body, (r.x + 40, r.y + 96, r.w - 80, 120), 16)
+            col = GREEN if kind == "win" else ORANGE
+            r = pygame.Rect(W // 2 - 310, H // 2 - 150, 620, 300)
+            surf.blit(ui.glow(r.w, r.h, col, 18, 24, 140), (r.x - 24, r.y - 24))
+            panel(surf, r, (43, 24, 12), accent=col, radius=18, width=2)
+            icon(surf, "check" if kind == "win" else "replay", (r.centerx, r.y + 46), 44, col)
+            text(surf, title, (r.centerx, r.y + 96), 30, col, 3, center=True)
+            text_box(surf, ("Bài học: " if kind == "win" else "Gợi ý: ") + body, (r.x + 44, r.y + 132, r.w - 88, 110), 16)
             text(surf, "Bấm chuột để " + ("quay lại danh sách thử thách" if kind == "win" else "thử lại"),
-                 (r.centerx, r.bottom - 34), 14, MUTED, center=True)
+                 (r.centerx, r.bottom - 30), 13, MUTED, center=True)
 
 
 # ====================================================================== Kết quả & giải thích
@@ -462,15 +552,15 @@ class ResultScene(Scene):
         from scenes_menu import MenuScene, PlaySetupScene
         a = self.app
         self.buttons = [
-            Button((40, H - 76, 210, 52), "▶ Xem replay", lambda: a.go(replay_scene(a, dict(self.rec, username=a.name))), "primary"),
-            Button((262, H - 76, 170, 52), "Đấu lại", lambda: a.go(PlaySetupScene(a))),
-            Button((444, H - 76, 150, 52), "Menu", lambda: a.go(MenuScene(a)), "ghost"),
+            Button((40, H - 78, 210, 54), "Xem replay", lambda: a.go(replay_scene(a, dict(self.rec, username=a.name))), "primary", icon_name="play"),
+            Button((262, H - 78, 170, 54), "Đấu lại", lambda: a.go(PlaySetupScene(a)), icon_name="sword"),
+            Button((444, H - 78, 150, 54), "Menu", lambda: a.go(MenuScene(a)), "ghost", icon_name="back"),
         ]
 
     def handle(self, e):
         if e.type == pygame.MOUSEWHEEL:
             n = len(self.s["decisions"])
-            self.scroll = max(0, min(max(0, n - 5), self.scroll - e.y))
+            self.scroll = max(0, min(max(0, n - 4), self.scroll - e.y))
         return super().handle(e)
 
     def draw(self, surf):
@@ -478,69 +568,90 @@ class ResultScene(Scene):
         s = self.s
         w = s["winner"]
         title, col = ("CHIẾN THẮNG!", GREEN) if w == 0 else ("HOÀ", GOLD) if w == -1 else ("THẤT BẠI", RED)
-        text(surf, title, (330, 70), 46, col, True, center=True)
-        r = pygame.Rect(40, 120, 580, 470)
-        panel(surf, r)
-        stats = [("Độ chính xác lựa chọn", f"{s['accuracy']}%"), ("Insight", s["insight"]),
-                 ("Bài toán đã giải", s["solved"]), ("Số lượt", s["turns"]),
-                 ("Máu còn lại", f"{max(0, s['hp'])} – đối thủ {max(0, s['enemy_hp'])}")]
-        for i, (lab, val) in enumerate(stats):
-            y = r.y + 22 + i * 40
-            text(surf, lab, (r.x + 24, y), 16, MUTED)
-            text(surf, val, (r.right - 24, y), 18, TEXT, True, right=True)
+        surf.blit(ui.radial(220, col, 70), (317 - 220, 66 - 220))
+        text(surf, title, (317, 66), 48, col, 3, center=True, shadow=True)
+        r = pygame.Rect(40, 118, 554, 506)
+        panel(surf, r, (43, 24, 12), radius=18)
+        big = [("Độ chính xác", f"{s['accuracy']}%", ACCENT), ("Insight", s["insight"], GREEN),
+               ("Bài toán đã giải", s["solved"], GOLD)]
+        for i, (lab, val, c) in enumerate(big):
+            br = pygame.Rect(r.x + 20 + i * 174, r.y + 20, 164, 86)
+            pygame.draw.rect(surf, (29, 15, 7), br, border_radius=14)
+            pygame.draw.rect(surf, ui.darken(c, .4), br, 1, border_radius=14)
+            text(surf, val, (br.centerx, br.y + 32), 32, c, 3, center=True)
+            text(surf, lab, (br.centerx, br.y + 66), 12, MUTED, 2, center=True)
+        text(surf, f"Số lượt {s['turns']}   ·   Máu còn {max(0, s['hp'])}   ·   Đối thủ {max(0, s['enemy_hp'])}",
+             (r.x + 22, r.y + 124), 14, (200, 208, 228))
         c = s["counts"]
-        y = r.y + 230
-        text(surf, "Phân loại quyết định của bạn", (r.x + 24, y), 15, TEXT, True)
+        y = r.y + 164
+        text(surf, "PHÂN LOẠI QUYẾT ĐỊNH", (r.x + 22, y), 11, MUTED, 3)
         items = [("optimal", c.get("optimal", 0)), ("acceptable", c.get("acceptable", 0)), ("trap", c.get("trap", 0)),
                  ("missed", c.get("missed", 0)), ("failed", c.get("failed", 0))]
-        total = max(1, sum(v for _, v in items))
-        x = r.x + 24
+        total = sum(v for _, v in items)
+        x = r.x + 22
+        bw = r.w - 44
+        pygame.draw.rect(surf, (29, 15, 7), (x, y + 24, bw, 16), border_radius=8)
         for k, v in items:
-            ww = int((r.w - 48) * v / total)
+            ww = int(bw * v / total) if total else 0
             if ww:
-                pygame.draw.rect(surf, RATING_COLOR[k], (x, y + 30, ww, 18))
+                pygame.draw.rect(surf, RATING_COLOR[k], (x, y + 24, ww, 16), border_radius=4)
                 x += ww
         for i, (k, v) in enumerate(items):
-            text(surf, f"{RATING_LABEL[k]}: {v}", (r.x + 24 + (i % 3) * 180, y + 60 + (i // 3) * 24), 13, RATING_COLOR[k], True)
-        y = r.y + 360
+            cx = r.x + 22 + (i % 3) * 176
+            cy = y + 56 + (i // 3) * 28
+            pygame.draw.circle(surf, RATING_COLOR[k], (cx + 6, cy + 9), 6)
+            text(surf, f"{RATING_LABEL[k].capitalize()}: {v}", (cx + 18, cy), 13, TEXT, 2)
+        y = r.y + 290
+        pygame.draw.line(surf, LINE, (r.x + 22, y), (r.right - 22, y))
+        y += 18
         if self.server:
             sv = self.server
-            text(surf, f"+{sv['xp_gain']} XP   ·   +{sv['points_gain']} điểm xếp hạng", (r.x + 24, y), 17, ACCENT, True)
+            chip(surf, f"+{sv['xp_gain']} XP", (r.x + 22, y), ACCENT, 14, filled=True)
+            chip(surf, f"+{sv['points_gain']} điểm xếp hạng", (r.x + 140, y), GOLD, 14, filled=True)
             if sv.get("level_up"):
-                text(surf, f"LÊN CẤP {sv['level']}!", (r.x + 24, y + 30), 18, GOLD, True)
+                text(surf, f"LÊN CẤP {sv['level']}!", (r.x + 22, y + 48), 22, GOLD, 3, shadow=True)
             if sv.get("new_unlocks"):
-                text_box(surf, "Mở khoá thẻ mới: " + ", ".join(CARDS[c]["name"] for c in sv["new_unlocks"]),
-                         (r.x + 24, y + 58, r.w - 48, 44), 14, GOLD)
+                text(surf, "THẺ MỚI MỞ KHOÁ", (r.x + 22, y + 88), 11, GOLD, 3)
+                for i, cid in enumerate(sv["new_unlocks"][:4]):
+                    ui.draw_card(surf, (r.x + 22 + i * 92, y + 108, 84, 60), cid, compact=True)
         elif self.app.user:
-            text(surf, "Trận đấu chưa được lưu lên máy chủ.", (r.x + 24, y), 15, ORANGE)
+            text(surf, "Trận đấu chưa được lưu lên máy chủ.", (r.x + 22, y), 15, ORANGE, 2)
         else:
-            text(surf, "Chế độ khách: trận đấu chỉ lưu trong phiên này.", (r.x + 24, y), 15, MUTED)
+            text(surf, "Chế độ khách: trận đấu chỉ lưu trong phiên này.", (r.x + 22, y), 15, MUTED)
 
         # giải thích sau trận
-        R = pygame.Rect(650, 40, 590, 630)
-        panel(surf, R)
-        text(surf, "GIẢI THÍCH SAU TRẬN", (R.x + 20, R.y + 16), 16, GOLD, True)
-        text(surf, "Lăn chuột để xem thêm", (R.right - 20, R.y + 18), 12, MUTED, right=True)
+        R = pygame.Rect(624, 30, 616, 660)
+        panel(surf, R, (40, 22, 11), radius=18)
+        icon(surf, "hint", (R.x + 32, R.y + 30), 22, GOLD)
+        text(surf, "GIẢI THÍCH SAU TRẬN", (R.x + 52, R.y + 20), 17, GOLD, 3)
+        text(surf, "Lăn chuột để xem thêm", (R.right - 22, R.y + 24), 12, MUTED, right=True)
         decs = s["decisions"]
         if not decs:
-            text_box(surf, "Không có quyết định nào liên quan đến bài toán. Hãy thử dùng thẻ phù hợp với bài toán giữa sân "
-                     "để nhận thưởng và Insight!", (R.x + 20, R.y + 60, R.w - 40, 80), 15, MUTED)
-        y = R.y + 52
+            text_box(surf, "Trận này bạn chưa dùng thẻ nào liên quan đến bài toán giữa sân. Hãy thử chọn thẻ phù hợp "
+                     "với bài toán để nhận thưởng và Insight!", (R.x + 24, R.y + 70, R.w - 48, 80), 15, MUTED)
+        y = R.y + 60
+        clip = surf.get_clip()
+        surf.set_clip(pygame.Rect(R.x, R.y + 52, R.w, R.h - 60))
         for d in decs[self.scroll:]:
             ch = CHALLENGES[d["challenge"]]["title"] if d.get("challenge") else "—"
-            lines = ui.wrap(d["explain"], 13, R.w - 60)
-            h = 58 + 17 * len(lines)
-            if y + h > R.bottom - 10:
+            lines = ui.wrap(d["explain"], 13, R.w - 76)
+            h = 62 + 18 * len(lines)
+            if y > R.bottom:
                 break
             col = RATING_COLOR[d["rating"]]
-            panel(surf, (R.x + 14, y, R.w - 28, h - 6), (18, 24, 42), col, 10)
-            text(surf, f"Lượt {d['turn']} · {CARDS[d['card']]['name']}", (R.x + 28, y + 8), 14, TEXT, True)
-            text(surf, RATING_LABEL[d["rating"]], (R.right - 28, y + 8), 13, col, True, right=True)
-            text(surf, "Bài toán: " + ch, (R.x + 28, y + 28), 12, MUTED)
-            yy = y + 46
+            card = pygame.Rect(R.x + 18, y, R.w - 36, h - 10)
+            pygame.draw.rect(surf, (32, 17, 8), card, border_radius=12)
+            pygame.draw.rect(surf, ui.darken(col, .35), card, 1, border_radius=12)
+            pygame.draw.rect(surf, col, (card.x, card.y + 10, 4, card.h - 20), border_radius=2)
+            text(surf, f"Lượt {d['turn']}  ·  {CARDS[d['card']]['name']}", (card.x + 18, card.y + 10), 14, TEXT, 3)
+            lab = RATING_LABEL[d["rating"]]
+            chip(surf, lab, (card.right - ui.text_size(lab, 10, 3)[0] - 30, card.y + 9), col, 10, filled=True)
+            text(surf, "Bài toán: " + ch, (card.x + 18, card.y + 32), 12, MUTED)
+            yy = card.y + 52
             for ln in lines:
-                text(surf, ln, (R.x + 28, yy), 13, (215, 222, 240))
-                yy += 17
+                text(surf, ln, (card.x + 18, yy), 13, (220, 226, 242))
+                yy += 18
             y += h
+        surf.set_clip(clip)
         for b in self.buttons:
             b.draw(surf)

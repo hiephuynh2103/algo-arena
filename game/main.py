@@ -30,6 +30,7 @@ async def main():
                 app.scene.handle(e)
         app.scene.update(dt)
         app.scene.draw(screen)
+        app.draw_fade(screen, dt)
         app.draw_toasts(screen, dt)
         pygame.display.flip()
         await asyncio.sleep(0)       # bắt buộc với pygbag: nhường quyền cho trình duyệt
