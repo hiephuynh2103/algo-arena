@@ -51,7 +51,7 @@ async def main():
         if b.g.current == 0:
             a = choose_action(b.g, "hard")
             if a["t"] == "play":
-                r = b.hand_rects(len(b.g.players[0].hand))[a["i"]]
+                r = b.hand_layout(len(b.g.players[0].hand))[a["i"]][0]
                 click(app, r.center)
             else:
                 b.end_turn()
@@ -68,9 +68,9 @@ async def main():
     start_puzzle(app, PUZZLES[0]); await pump(app, 0.3); app.scene.toggle_hint(); await pump(app); shot(app, "08_puzzle")
     b = app.scene
     hand = b.g.players[0].hand
-    click(app, b.hand_rects(len(hand))[hand.index("quick_sort")].center); await pump(app, 0.3)
+    click(app, b.hand_layout(len(hand))[hand.index("quick_sort")][0].center); await pump(app, 0.3)
     hand = b.g.players[0].hand
-    click(app, b.hand_rects(len(hand))[hand.index("binary_search")].center); await pump(app, 2.0)
+    click(app, b.hand_layout(len(hand))[hand.index("binary_search")][0].center); await pump(app, 2.0)
     shot(app, "09_puzzle_win")
     assert b.overlay and b.overlay[0] == "win"
     await pump(app, 1.0)
