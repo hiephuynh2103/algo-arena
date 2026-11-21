@@ -32,6 +32,45 @@ def click(app, pos):
     app.scene.handle(pygame.event.Event(pygame.MOUSEMOTION, pos=pos, rel=(0,0), buttons=(0,0,0)))
     app.scene.handle(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=pos, button=1))
 
+def check_full_hand(app):
+    """Reach eight cards by passing four turns against the real easy AI."""
+    from engine import Game, STARTER_DECK, ai_deck
+    from engine.engine import HAND_LIMIT
+    from scene_battle import END_BTN, LOG_CLOSE
+    seed = 1
+    g = Game(seed, STARTER_DECK, ai_deck("easy", seed), names=(app.name, "AI Dễ"))
+    scene = BattleScene(app, g, deck=list(STARTER_DECK), difficulty="easy")
+    app.go(scene)
+    while g.turn < 9 and not g.over:
+        if g.current == 0:
+            click(app, END_BTN.center)
+        else:
+            scene.update(1.0)
+    assert scene.my_turn() and len(g.me.hand) == HAND_LIMIT
+    for _ in range(50):
+        scene.update(1 / 30)
+    rects = [r for r, _ in scene.hand_layout(HAND_LIMIT)]
+    for i, r in enumerate(rects):
+        assert app.screen.get_rect().contains(r)
+        assert scene.pick_hand(r.center) == i
+        if i:
+            assert not r.colliderect(rects[i-1])
+    shot(app, "15_full_hand")
+    i = g.me.hand.index("queue")
+    scene.handle(pygame.event.Event(pygame.MOUSEMOTION, pos=rects[i].center))
+    assert scene.hover == i
+    shot(app, "16_card_detail")
+    scene.handle(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=rects[i].center, button=3))
+    assert scene.pinned and scene.hover == i
+    click(app, next(b.rect.center for b in scene.buttons if b.label == "Nhật ký"))
+    assert scene.log_open
+    shot(app, "17_battle_log")
+    click(app, LOG_CLOSE.center)
+    assert not scene.log_open
+    click(app, END_BTN.center)
+    assert g.current == 1
+
+
 async def main():
     screen = pygame.display.set_mode((ui.W, ui.H))
     app = App(screen)
@@ -41,7 +80,7 @@ async def main():
     s = app.scene; import random; s.user.value = "sv" + str(random.randint(1000, 9999)); s.pw.value = "matkhau123"
     shot(app, "01_login")
     s.submit("register"); await pump(app, until=lambda: isinstance(app.scene, MenuScene))
-    await pump(app, 0.5); shot(app, "02_menu")
+    await pump(app, 3.2); shot(app, "02_menu")
     app.go(PlaySetupScene(app)); await pump(app); shot(app, "03_setup")
     app.scene.start("easy"); await pump(app, 1.5)
     b = app.scene; assert isinstance(b, BattleScene)
@@ -82,6 +121,8 @@ async def main():
     for _ in range(6): app.scene.goto(app.scene.step + 1)
     await pump(app, 0.3); shot(app, "12_replay")
     app.go(LeaderboardScene(app)); await pump(app, until=lambda: app.scene.rows is not None); shot(app, "13_leaderboard")
+    await pump(app, 4.2)
+    check_full_hand(app)
     # offline mode
     app.net.set_token(""); app.user = None
     app.go(MenuScene(app)); await pump(app); shot(app, "14_menu_offline")

@@ -8,7 +8,7 @@ import ui
 from ui import (W, H, text, text_box, panel, bar, chip, icon, Button, TextInput, TEXT, MUTED, ACCENT, ACCENT2,
                 GOLD, RED, GREEN, ORANGE, LINE, PANEL, PANEL2)
 from scenes_base import Scene, back_button
-from engine import CARDS, Game, ai_deck
+from engine import CARDS, PUZZLES, Game, ai_deck
 from engine.ai import describe_ai, DIFFICULTY_POINTS
 
 DIFF_VI = {"easy": "Dễ", "normal": "Thường", "hard": "Khó"}
@@ -181,24 +181,19 @@ class Tile:
 class MenuScene(Scene):
     def enter(self):
         a = self.app
-        items = [
-            ("Đấu với AI", "Chọn độ khó, dùng bộ bài của bạn", "sword", RED, lambda: a.go(PlaySetupScene(a))),
-            ("Thử thách", "Giải đố theo chủ đề, mở khoá thẻ mới", "puzzle", ORANGE, self._puzzles),
-            ("Hướng dẫn", "Lý thuyết ngắn rồi thực hành ngay", "book", ACCENT, self._tutorials),
-            ("Bộ bài", "Xây dựng bộ bài 12 thẻ", "deck", ACCENT2, self._deck),
-            ("Lịch sử & Replay", "Xem lại từng nước đi", "replay", (90, 170, 255), lambda: a.go(HistoryScene(a))),
-            ("Bảng xếp hạng", "Top người chơi", "crown", GOLD, lambda: a.go(LeaderboardScene(a))),
-        ]
-        self.tiles = []
-        for i, (t, s, ic, c, cb) in enumerate(items):
-            col, row = i % 2, i // 2
-            self.tiles.append(Tile((W // 2 - 400 + col * 410, 268 + row * 132, 390, 112), t, s, ic, c, cb))
-        if self.app.user:
-            self.buttons = [Button((W - 176, 22, 154, 40), "Đăng xuất", self.logout, "ghost", 14, icon_name="logout"),
-                            Button((W - 340, 22, 156, 40), "Trang web", lambda: a.net.go("/"), "ghost", 14, icon_name="globe")]
+        self.buttons = [ui.BookButton((534, 505, 225, 58), "Đấu với AI", lambda: a.go(PlaySetupScene(a)),
+                                      "primary", 22, icon_name="play")]
+        links = [("Thử thách", "puzzle", self._puzzles), ("Bộ bài", "deck", self._deck),
+                 ("Hướng dẫn", "book", self._tutorials),
+                 ("Lịch sử & Replay", "replay", lambda: a.go(HistoryScene(a))),
+                 ("Bảng xếp hạng", "crown", lambda: a.go(LeaderboardScene(a)))]
+        for i, (label, symbol, action) in enumerate(links):
+            self.buttons.append(ui.BookButton((846, 211 + 66 * i, 355, 63), label, action, "row", 19, icon_name=symbol))
+        if a.user:
+            self.buttons.extend([ui.BookButton((960, 20, 128, 36), "Trang web", lambda: a.net.go("/"), size=14, icon_name="globe"),
+                                 ui.BookButton((1100, 20, 142, 36), "Đăng xuất", self.logout, size=14, icon_name="logout")])
         else:
-            self.buttons = [Button((W - 176, 22, 154, 40), "Đăng nhập", lambda: a.go(LoginScene(a)), "ghost", 14)]
-        self.dt = 1 / 60
+            self.buttons.append(ui.BookButton((1100, 20, 142, 36), "Đăng nhập", lambda: a.go(LoginScene(a)), size=14))
 
     def _puzzles(self):
         from scenes_learn import PuzzleListScene
@@ -217,64 +212,52 @@ class MenuScene(Scene):
         self.app.user = None
         self.app.go(LoginScene(self.app, "Đã đăng xuất"))
 
-    def handle(self, e):
-        for t in self.tiles:
-            if t.handle(e):
-                return True
-        return super().handle(e)
-
-    def update(self, dt):
-        super().update(dt)
-        self.dt = dt
-
     def draw(self, surf):
-        self.draw_bg(surf)
-        card_fan(surf, (110, 560), ["linear_search", "merge_sort", "union_find"], False, self.t)
-        card_fan(surf, (W - 110, 560), ["kruskal", "trie", "recursion"], True, self.t)
-        # logo nhỏ
-        mark = pygame.Rect(24, 20, 44, 44)
-        self.screen_logo(surf, mark)
-        text(surf, "ALGO ARENA", (78, 24), 24, TEXT, 3)
-        text(surf, "Card battle học thuật toán", (78, 50), 12, MUTED)
-        u = self.app.user
-        r = pygame.Rect(W // 2 - 400, 92, 800, 148)
-        panel(surf, r, (43, 24, 12), accent=(150, 112, 58), radius=18)
-        if u:
-            av = pygame.Rect(r.x + 24, r.y + 26, 72, 72)
-            surf.blit(ui.vgradient(72, 72, (*ACCENT, 255), (*ACCENT2, 255), 36), av)
-            text(surf, u["username"][:1].upper(), av.center, 34, (23, 17, 4), 3, center=True)
-            text(surf, u["username"], (r.x + 114, r.y + 24), 26, TEXT, 3)
-            chip(surf, "Quản trị viên" if u["role"] == "admin" else "Người chơi", (r.x + 114, r.y + 62), ACCENT2, 11)
-            # cấp độ
-            lx = r.x + 114
-            text(surf, f"Cấp {u['level']}", (lx, r.y + 92), 15, GOLD, 3)
-            bar(surf, (lx + 66, r.y + 97, 170, 12), u["xp_in_level"] / u["xp_per_level"], GOLD)
-            text(surf, f"{u['xp_in_level']}/{u['xp_per_level']} XP", (lx + 244, r.y + 92), 12, MUTED)
-            text(surf, f"Thẻ mở khoá {len(u['unlocked'])}/{len(CARDS)}  ·  Thử thách {len(u['puzzles_done'])}/6",
-                 (lx, r.y + 118), 12, MUTED)
-            stats = [("Điểm", u["points"], GOLD), ("Thắng", u["wins"], GREEN), ("Thua", u["losses"], RED),
-                     ("Chính xác", f"{u['accuracy']}%", ACCENT)]
-            for i, (lab, val, c) in enumerate(stats):
-                sr = pygame.Rect(r.x + 466 + (i % 2) * 162, r.y + 18 + (i // 2) * 58, 152, 52)
-                pygame.draw.rect(surf, (29, 15, 7), sr, border_radius=12)
-                pygame.draw.rect(surf, ui.darken(c, .45), sr, 1, border_radius=12)
-                pygame.draw.rect(surf, c, (sr.x, sr.y + 12, 4, sr.h - 24), border_radius=2)
-                text(surf, str(val), (sr.x + 16, sr.y + 6), 21, TEXT, 3)
-                text(surf, lab, (sr.x + 16, sr.y + 32), 11, MUTED)
-        else:
-            text(surf, "Chế độ khách", (r.x + 30, r.y + 28), 26, TEXT, 3)
-            text_box(surf, "Tiến trình, bộ bài và trận đấu sẽ không được lưu lên máy chủ. Đăng nhập để vào bảng "
-                     "xếp hạng và lưu replay.", (r.x + 30, r.y + 72, 740, 60), 15, MUTED)
-        for t in self.tiles:
-            t.draw(surf, self.dt)
-        for b in self.buttons:
-            b.draw(surf)
-        text(surf, "Mẹo: rê chuột lên thẻ bất kỳ để xem bài học đi kèm", (W // 2, H - 22), 12, (150, 126, 96), center=True)
+        surf.fill(ui.INK)
+        ui.plate(surf, "emblem", (28, 16, 44, 44))
+        text(surf, "ALGO ARENA", (87, 18), 27, ui.CREAM, 3)
+        pygame.draw.line(surf, ui.RULE, (308, 23), (308, 54))
+        text(surf, "Card battle học thuật toán", (326, 28), 15, ui.STEEL, 1)
 
-    def screen_logo(self, surf, r):
-        surf.blit(ui.vgradient(r.w, r.h, (*ACCENT, 255), (*ACCENT2, 255), 12), r)
-        text(surf, "A", r.center, 26, (23, 17, 4), 3, center=True)
+        # Spread with a full-bleed frontispiece and a separate index page.
+        pygame.draw.rect(surf, ui.PAPER, (28, 80, 1224, 504))
+        ui.plate(surf, "desk", (28, 80, 768, 406), cover=True)
+        pygame.draw.rect(surf, ui.NAVY, (28, 486, 768, 98))
+        text(surf, "Bàn đấu thuật toán", (53, 496), 31, ui.CREAM, 3)
+        text(surf, "Chọn độ khó và ra trận với bộ bài của bạn.", (55, 545), 15, ui.STEEL)
+        pygame.draw.rect(surf, (205, 190, 155), (796, 80, 7, 504))
+        pygame.draw.rect(surf, ui.OCHRE, (846, 80, 43, 15))
+        text(surf, "Sổ tay đấu bài", (845, 124), 37, ui.INK, 3)
+        pygame.draw.line(surf, ui.INK, (846, 194), (1201, 194), 2)
 
+        self.draw_profile(surf)
+        for button in self.buttons:
+            button.draw(surf)
+
+    def draw_profile(self, surf):
+        a, y = self.app, 601
+        u = a.user
+        pygame.draw.line(surf, ui.RULE, (28, y), (1252, y))
+        ui.plate(surf, "player", (30, y + 20, 72, 72))
+        if not u:
+            text(surf, "Chế độ khách", (122, y + 24), 22, ui.CREAM, 3)
+            text(surf, "Đăng nhập để lưu tiến trình và replay.", (123, y + 62), 15, ui.STEEL)
+            return
+        ui.fit_text(surf, a.name, (122, y + 20, 218, 35), 23, ui.CREAM, 3)
+        text(surf, "Quản trị viên" if u["role"] == "admin" else "Người chơi", (123, y + 63), 14, ui.STEEL)
+        text(surf, f"Cấp {u['level']}", (359, y + 17), 18, ui.CREAM, 3)
+        text(surf, f"{u['xp_in_level']}/{u['xp_per_level']} XP", (641, y + 21), 13, ui.STEEL, 1, right=True)
+        pygame.draw.rect(surf, ui.SLATE, (359, y + 50, 282, 5))
+        width = round(282 * min(1, u["xp_in_level"] / max(1, u["xp_per_level"])))
+        pygame.draw.rect(surf, ui.AMBER, (359, y + 50, width, 5))
+        text(surf, f"Đã mở {len(u['unlocked'])}/{len(CARDS)} thẻ   ·   Thử thách {len(u['puzzles_done'])}/{len(PUZZLES)}",
+             (359, y + 65), 13, ui.STEEL)
+        stats = [("Điểm", u["points"]), ("Thắng", u["wins"]), ("Thua", u["losses"]), ("Chính xác", f"{u['accuracy']}%")]
+        for i, (label, value) in enumerate(stats):
+            x = 694 + i * 143
+            pygame.draw.line(surf, ui.RULE, (x, y + 24), (x, y + 84))
+            text(surf, value, (x + 19, y + 17), 26, ui.CREAM, 2)
+            text(surf, label, (x + 20, y + 62), 14, ui.STEEL)
 
 # ====================================================================== Chọn độ khó
 class PlaySetupScene(Scene):

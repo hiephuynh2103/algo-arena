@@ -718,3 +718,73 @@ def logo(surf, center, size=56, t=0.0):
     tinted = img.copy()
     tinted.blit(grad, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     surf.blit(tinted, tinted.get_rect(center=center))
+
+# Màu và hình dùng riêng cho màn chính và bàn đấu.
+INK = (20, 37, 48)
+NAVY = (26, 48, 60)
+SLATE = (46, 70, 80)
+RULE = (76, 96, 100)
+PAPER = (233, 223, 197)
+CREAM = (248, 240, 217)
+SAND = (195, 187, 165)
+STEEL = (171, 190, 189)
+AMBER = (241, 183, 82)
+OCHRE = (135, 82, 34)
+
+
+def plate(surf, name, rect, cover=False):
+    """Scale once from the master illustration, with a centered crop or inset."""
+    r = pygame.Rect(rect)
+    def load():
+        filename = os.path.join(HERE, "assets", "fieldbook", name + ".jpg")
+        return pygame.image.load(filename).convert()
+    source = _cached(("plate-master", name), load)
+
+    def resize():
+        if cover:
+            crop = r.fit(source.get_rect())
+            crop.center = source.get_rect().center
+            return pygame.transform.smoothscale(source.subsurface(crop), r.size)
+        return pygame.transform.smoothscale(source, source.get_rect().fit(r).size)
+    art = _cached(("plate", name, r.size, cover), resize)
+    surf.blit(art, art.get_rect(center=r.center))
+
+
+class BookButton(Button):
+    """Flat ink controls. Input uses Button.handle and the same painted rect."""
+    def draw(self, surf):
+        r = self.rect
+        primary = self.kind == "primary"
+        row = self.kind == "row"
+        fg = INK if row or primary else PAPER
+        if primary:
+            pygame.draw.rect(surf, CREAM if self.hover else AMBER, r, border_radius=4)
+        elif row:
+            if self.hover:
+                pygame.draw.rect(surf, (221, 207, 174), r)
+            pygame.draw.line(surf, SAND, r.bottomleft, r.bottomright)
+        else:
+            pygame.draw.rect(surf, SLATE if self.hover else NAVY, r, border_radius=4)
+            pygame.draw.rect(surf, RULE, r, 1, border_radius=4)
+        if row:
+            icon(surf, self.icon, (r.x + 19, r.centery), 21, OCHRE)
+            text(surf, self.label, (r.x + 46, r.centery - font(self.size, 2).get_height() // 2), self.size, fg, 2)
+            icon(surf, "next", (r.right - 16, r.centery), 11, OCHRE)
+        else:
+            width, height = text_size(self.label, self.size, 2)
+            gap = 8 if self.label and self.icon else 0
+            side = self.size if self.icon else 0
+            x = r.centerx - (width + side + gap) // 2
+            if self.icon:
+                icon(surf, self.icon, (x + side // 2, r.centery), side, fg)
+            text(surf, self.label, (x + side + gap, r.centery - height // 2), self.size, fg, 2)
+
+
+def fit_text(surf, label, rect, size, color=INK, weight=2):
+    r = pygame.Rect(rect)
+    while size > 10 and text_size(label, size, weight)[0] > r.w:
+        size -= 1
+    old = surf.get_clip()
+    surf.set_clip(old.clip(r))
+    text(surf, label, (r.x, r.centery - font(size, weight).get_height() // 2), size, color, weight)
+    surf.set_clip(old)
