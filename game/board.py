@@ -5,7 +5,10 @@ from ui import INK, NAVY, SLATE, RULE, PAPER, CREAM, SAND, STEEL, AMBER, OCHRE
 from engine import CARDS, CATEGORY_LABEL, card_cost_label
 
 FAMILY_ART = {"graph": "graph", "search": "search", "sort": "sort", "paradigm": "choice", "ds": "index"}
-CARD_ART = {"stack": "stack", "undo": "stack", "queue": "queue", "heap": "queue", "dp": "plan"}
+CARD_ART = {"stack":"stack","queue":"queue","undo":"spool","heap":"heap","hash_table":"drawer",
+            "binary_search":"split","bubble_sort":"swap","quick_sort":"pivot","merge_sort":"merge",
+            "dp":"bag","recursion":"boxes","trie":"tree","dijkstra":"ruler","kruskal":"scale",
+            "two_pointers":"plan","topo_sort":"sort","backtracking":"choice","union_find":"pins"}
 
 
 def card(surf, rect, cid, playable=True, selected=False, badge=None):
@@ -13,7 +16,7 @@ def card(surf, rect, cid, playable=True, selected=False, badge=None):
     c = CARDS[cid]
     def paint():
         s = pygame.Surface(r.size)
-        s.fill(CREAM if selected else PAPER)
+        ui.wash(s, s.get_rect(), "paper", OCHRE if selected else RULE)
         # A square illustration above the title keeps the subject intact at every hand size.
         top = 8
         side = min(r.w - 16, r.h - 82)
@@ -60,7 +63,7 @@ def detail(surf, cid, pos):
             for value, size, color, weight in groups]
     h = 24 + sum(len(lines) * ui.font(size, weight).get_linesize() + 6 for lines, size, _, weight in rows)
     r = pygame.Rect(pos, (w, h))
-    pygame.draw.rect(surf, NAVY, r)
+    ui.wash(surf, r, "indigo", SAND)
     pygame.draw.rect(surf, SAND, r, 1)
     pygame.draw.rect(surf, AMBER, (r.x, r.y, 4, h))
     y = r.y + 12
@@ -73,9 +76,8 @@ def detail(surf, cid, pos):
 
 
 def board(surf):
-    surf.fill(INK)
-    # Navy cloth, mat seam and plain ivory note surfaces.
-    pygame.draw.rect(surf, NAVY, (0, 62, ui.W, 395))
-    pygame.draw.rect(surf, (31, 55, 66), (0, 155, ui.W, 209))
-    for y in (61, 154, 363, 456):
-        pygame.draw.line(surf, RULE, (0, y), (ui.W, y))
+    ui.plate(surf, "indigo", (0,0,ui.W,ui.H), cover=True)
+    ui.wash(surf, (0, 62, ui.W, 395), "indigo", RULE)
+    ui.plate(surf, "journey", (0,155,ui.W,209), cover=True)
+    ui.wash(surf, (13,161,225,195), "indigo")
+    ui.wash(surf, (981,161,280,195), "indigo")

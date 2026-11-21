@@ -47,22 +47,18 @@ class PuzzleListScene(Scene):
             ok = pz["id"] in done
             hov = r.collidepoint(mp)
             col = GREEN if ok else ORANGE
-            if hov:
-                surf.blit(ui.glow(r.w, r.h, col, 16, 16, 120), (r.x - 16, r.y - 16))
-            panel(surf, r, (45, 25, 13), accent=col if (ok or hov) else None, radius=16, width=2 if hov else 1)
-            num = pygame.Rect(r.x + 20, r.y + 20, 54, 54)
-            surf.blit(ui.vgradient(54, 54, (*ui.lighten(col, .1), 255), (*ui.darken(col, .4), 255), 14), num)
+            ui.wash(surf, r, "indigo", ui.AMBER if hov else ui.RULE)
+            art = ("split","bag","graph","boxes","heap","tree")[i]
+            ui.plate(surf, art, (r.x+17,r.y+14,58,58))
             if ok:
-                icon(surf, "check", num.center, 30, (255, 255, 255))
-            else:
-                text(surf, pz["id"][1:], num.center, 24, (255, 255, 255), 3, center=True)
+                icon(surf, "check", (r.right-20,r.y+18), 21, GREEN)
             chip(surf, pz["topic"].upper(), (r.x + 90, r.y + 20), col, 10)
             text(surf, pz["title"], (r.x + 90, r.y + 44), 20, TEXT, 3)
             text_box(surf, pz["goal"], (r.x + 20, r.y + 88, r.w - 40, 44), 14, (205, 213, 234))
             names = ", ".join(CARDS[c]["name"] for c in pz["unlocks"])
             icon(surf, "bolt", (r.x + 28, r.bottom - 25), 16, ACCENT)
             text(surf, "Mở khoá: " + names + "  ·  +40 XP", (r.x + 42, r.bottom - 34), 13, ACCENT, 2)
-        text(surf, "Mỗi thử thách phải hạ đối thủ trong MỘT lượt. Có nút Gợi ý nếu bí.", (W // 2, H - 24), 13, MUTED, center=True)
+        text(surf, "Mỗi thử thách phải hạ đối thủ trong MỘT lượt. Có nút Gợi ý nếu bí.", (W // 2, H - 24), 13, ui.INK, center=True)
 
 
 class TutorialScene(Scene):
@@ -138,6 +134,8 @@ class TutorialScene(Scene):
             pygame.draw.circle(surf, ACCENT, (R.x + 46, y + 13), 6)
             pygame.draw.circle(surf, (23, 17, 4), (R.x + 46, y + 13), 2)
             y = text_box(surf, ln, (R.x + 66, y, R.w - 110, 120), 19, (222, 228, 244)) + 18
+        if y < R.bottom-155:
+            ui.plate(surf, "journey", (R.x+34,R.bottom-150,R.w-68,100), cover=True)
         for k in range(n):
             pygame.draw.circle(surf, ACCENT if k == self.page else LINE, (R.centerx - (n - 1) * 12 + k * 24, R.bottom - 24), 6)
         text(surf, f"Trang {self.page + 1}/{n}", (R.right - 24, R.bottom - 32), 13, MUTED, right=True)

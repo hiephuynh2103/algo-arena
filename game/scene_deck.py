@@ -166,7 +166,7 @@ class DeckScene(Scene):
             c = CARDS[cid]
             hov = r.collidepoint(mp)
             cc = ui.CAT_COLOR[c["cat"]]
-            pygame.draw.rect(surf, ui.darken(cc, .35) if hov else (49, 29, 16), r, border_radius=8)
+            pygame.draw.rect(surf, ui.darken(cc, .35) if hov else ui.NAVY, r, border_radius=8)
             pygame.draw.rect(surf, cc, (r.x, r.y + 4, 4, r.h - 8), border_radius=2)
             pygame.draw.circle(surf, ACCENT2, (r.x + 20, r.centery), 10)
             text(surf, card_cost_label(cid), (r.x + 20, r.centery), 12, (23, 10, 6), 3, center=True)

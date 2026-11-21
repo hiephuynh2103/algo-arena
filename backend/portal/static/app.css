@@ -1,7 +1,8 @@
+/* Painted field journal shared by the portal and administration screens. */
 :root{
-  --bg:#140b05; --panel:#26170d; --panel2:#352113; --line:#5a4024; --text:#faf0dc; --muted:#c4ac8a;
-  --accent:#f0be5c; --accent2:#d65c46; --gold:#ffd678; --red:#ff6b6b; --green:#50e68c; --orange:#ff9f43;
-  --radius:14px;
+ --bg:#eee6d2;--panel:#fcf6e6;--panel2:#e8dfc6;--line:#9d9378;--text:#173b43;--muted:#4d6262;
+ --accent:#80511d;--accent2:#e6b96d;--gold:#765021;--red:#923e36;--green:#296146;--orange:#a75d30;
+ --radius:5px 12px 4px 9px / 9px 4px 13px 4px;
 }
 *{box-sizing:border-box}
 body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#4a2a10 0,transparent 60%),var(--bg);
@@ -72,3 +73,27 @@ th{color:var(--muted);font-weight:600;font-size:13px}
 .bars div{display:flex;align-items:center;gap:8px;font-size:12px;margin:4px 0}
 .bars i{display:block;height:12px;background:var(--accent);border-radius:4px;min-width:2px}
 .toast{position:fixed;bottom:22px;right:22px;background:var(--panel2);border:1px solid var(--accent);padding:12px 18px;border-radius:12px;z-index:9}
+
+body{background:#f4eddc url('/static/paint/paper.jpg') repeat fixed;background-size:720px auto}
+header{background:#123a45 url('/static/paint/indigo.jpg') center/cover;color:#fff4d8}
+header a,header .who,header nav a{color:#f6ecd1}
+.logo{color:#fff3d3}.logo span{background:url('/static/paint/emblem.jpg') center/cover;color:transparent}
+nav a.active,nav a:hover{color:#172e32;background:#e6c991}
+.hero{grid-template-columns:1.08fr 1fr;gap:0;padding:0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:4px 5px 0 #4d5a481d}
+.cover{margin:0;height:clamp(470px,69vh,640px)}.cover img{width:100%;height:100%;object-fit:cover;object-position:center 57%}
+.hero>.card{height:100%;display:flex;flex-direction:column;justify-content:center;padding:clamp(22px,4vw,62px);border:0}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;letter-spacing:-.025em}
+h1{font-size:clamp(44px,6vw,76px);margin:6px 0}.intro{margin:0 0 22px;color:var(--muted)}
+.seal{width:53px;height:53px;mix-blend-mode:multiply}
+.card,.gc,.features div,.stat{background:#f4ecda url('/static/paint/paper.jpg') center/cover;border-radius:var(--radius);border:1px solid var(--line)}
+.btn,.tabs button,.tabs button.on{border:1px solid #637574;border-radius:var(--radius);color:#173b43;background:#ecdfc1 url('/static/paint/paper.jpg') center/cover}
+.btn.primary,.tabs button.on{color:#1b302c;background:#e6b562 url('/static/paint/ochre.jpg') center/cover;border:1px solid #8b6936}
+.btn:hover,.tabs button:hover{outline:2px solid #97733f;outline-offset:1px;filter:none}
+input,select{color:#18373d;background:#fffaf0;border-color:#89908a;border-radius:var(--radius)}
+.btn.danger,.loss,.locked{color:#772e2a;background:#eed5c8}.win,.player{color:#234d3f;background:#d6e4ce}.draw,.admin{color:#5d4725;background:#ecddb7}
+.bar{background:#cfc8af}.bar i,.bars i{background:#446c67}
+.gc p{color:#324c50}.gc.off{opacity:.8}.study{height:115px;width:100%;object-fit:contain;mix-blend-mode:multiply}
+#home>.grid>.card:first-child{border-top:12px solid #476c66}
+.features{margin:22px 0}.features div{border-width:0 0 1px;background:transparent;border-radius:0}
+header nav{flex-wrap:wrap}.card{overflow-x:auto}.toast{background:#e6dbc2;color:#163841}
+@media(max-width:760px){.hero{grid-template-columns:1fr}.cover{height:180px}.cover img{object-position:center 40%}.features{grid-template-columns:1fr 1fr}.hero>.card{padding:22px}main{padding:14px}header{position:static}}

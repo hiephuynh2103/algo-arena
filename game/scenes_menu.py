@@ -80,7 +80,7 @@ class LoginScene(Scene):
         super().__init__(app)
         self.msg = msg
         self.busy = False
-        cx = W // 2
+        cx = 922
         self.user = TextInput((cx - 190, 318, 380, 50), "Tên đăng nhập")
         self.pw = TextInput((cx - 190, 380, 380, 50), "Mật khẩu (ít nhất 6 ký tự)", password=True, maxlen=64)
         self.user.focus = True
@@ -129,22 +129,18 @@ class LoginScene(Scene):
         super().handle(e)
 
     def draw(self, surf):
-        self.draw_bg(surf)
-        card_fan(surf, (190, 470), ["stack", "bfs", "dp"], False, self.t)
-        card_fan(surf, (W - 190, 470), ["dijkstra", "quick_sort", "heap"], True, self.t)
-        ui.logo(surf, (W // 2, 128), 62, self.t)
-        text(surf, "Card battle học Cấu trúc dữ liệu & Giải thuật", (W // 2, 188), 19, MUTED, 1, center=True)
-        r = pygame.Rect(W // 2 - 222, 238, 444, 340)
-        panel(surf, r, (40, 22, 11), accent=(150, 112, 58), radius=18)
-        text(surf, "Đăng nhập", (r.x + 32, r.y + 26), 22, TEXT, 3)
-        text(surf, "Dùng chung tài khoản với trang web", (r.right - 32, r.y + 34), 12, MUTED, right=True)
-        self.user.draw(surf, 1 / 60)
-        self.pw.draw(surf, 1 / 60)
-        for b in self.buttons:
-            b.draw(surf)
-        if self.msg:
-            text(surf, self.msg, (W // 2, 606), 15, GOLD, 2, center=True)
-        text(surf, "Pygame · WebAssembly · FastAPI · PostgreSQL", (W // 2, H - 28), 12, (140, 116, 86), center=True)
+        ui.plate(surf, "paper", (0,0,W,H), cover=True)
+        ui.plate(surf, "gate", (24,22,574,676), cover=True)
+        ui.wash(surf, (646,61,559,600), "paper", ui.OCHRE)
+        ui.plate(surf, "emblem", (884,83,76,76))
+        text(surf, "Algo Arena", (922,201), 47, ui.INK, 3, center=True)
+        text(surf, "Card battle học thuật toán", (922,251), 18, ui.SLATE, 1, center=True)
+        text(surf, "Tài khoản người chơi", (732,280), 16, ui.INK, 2)
+        self.user.draw(surf, 1/60)
+        self.pw.draw(surf, 1/60)
+        for button in self.buttons:
+            button.draw(surf)
+        text_box(surf, self.msg, (733,575,380,75), 14, ui.OCHRE, 2)
 
 
 # ====================================================================== Menu
@@ -164,18 +160,11 @@ class Tile:
         return False
 
     def draw(self, surf, dt):
-        self.h += ((1.0 if self.hover else 0.0) - self.h) * min(1, dt * 12)
-        r = self.rect.move(0, -int(self.h * 4))
-        if self.h > 0.02:
-            g = ui.glow(r.w, r.h, self.color, 16, 18, int(150 * self.h))
-            surf.blit(g, (r.x - 18, r.y - 18))
-        panel(surf, r, (45, 25, 13), accent=ui.mix((116, 88, 50), self.color, self.h), radius=16, width=2 if self.h > .5 else 1)
-        ic = pygame.Rect(r.x + 22, r.centery - 30, 60, 60)
-        surf.blit(ui.vgradient(60, 60, (*ui.lighten(self.color, .1), 255), (*ui.darken(self.color, .35), 255), 16), ic)
-        icon(surf, self.icon, ic.center, 34, (255, 255, 255))
-        text(surf, self.title, (r.x + 100, r.centery - 24), 21, TEXT, 3)
-        text(surf, self.sub, (r.x + 100, r.centery + 6), 13, MUTED)
-        icon(surf, "next", (r.right - 26, r.centery), 14, ui.mix(MUTED, self.color, self.h))
+        r = self.rect
+        ui.wash(surf, r, "indigo", ui.AMBER if self.hover else ui.RULE)
+        ui.plate(surf, {"easy":"notebook","normal":"plan","hard":"master"}[self.diff], (r.x+12,r.y+27,75,75))
+        text(surf, self.title, (r.x+99,r.y+12), 23, ui.CREAM, 3)
+        text_box(surf, self.sub, (r.x+99,r.y+53,r.w-112,64), 13, ui.PAPER)
 
 
 class MenuScene(Scene):
@@ -213,16 +202,16 @@ class MenuScene(Scene):
         self.app.go(LoginScene(self.app, "Đã đăng xuất"))
 
     def draw(self, surf):
-        surf.fill(ui.INK)
+        ui.plate(surf, "indigo", (0,0,W,H), cover=True)
         ui.plate(surf, "emblem", (28, 16, 44, 44))
         text(surf, "ALGO ARENA", (87, 18), 27, ui.CREAM, 3)
         pygame.draw.line(surf, ui.RULE, (308, 23), (308, 54))
         text(surf, "Card battle học thuật toán", (326, 28), 15, ui.STEEL, 1)
 
         # Spread with a full-bleed frontispiece and a separate index page.
-        pygame.draw.rect(surf, ui.PAPER, (28, 80, 1224, 504))
+        ui.wash(surf, (28,80,1224,504), "paper", ui.OCHRE)
         ui.plate(surf, "desk", (28, 80, 768, 406), cover=True)
-        pygame.draw.rect(surf, ui.NAVY, (28, 486, 768, 98))
+        ui.wash(surf, (28,486,768,98), "indigo")
         text(surf, "Bàn đấu thuật toán", (53, 496), 31, ui.CREAM, 3)
         text(surf, "Chọn độ khó và ra trận với bộ bài của bạn.", (55, 545), 15, ui.STEEL)
         pygame.draw.rect(surf, (205, 190, 155), (796, 80, 7, 504))
@@ -312,8 +301,8 @@ class PlaySetupScene(Scene):
             n = {"easy": 1, "normal": 2, "hard": 3}[t.diff]
             for k in range(3):
                 pygame.draw.circle(surf, t.color if k < n else (70, 49, 31), (t.rect.right - 70 + k * 16, t.rect.y + 26), 5)
-        text(surf, "Bộ bài của bạn", (W // 2 - 480, 262), 18, TEXT, 3)
-        text(surf, "Sửa trong mục Bộ bài", (W // 2 + 480, 266), 12, MUTED, right=True)
+        text(surf, "Bộ bài của bạn", (W // 2 - 480, 262), 18, ui.INK, 3)
+        text(surf, "Sửa trong mục Bộ bài", (W // 2 + 480, 266), 12, ui.SLATE, right=True)
         mp = pygame.mouse.get_pos()
         hov = None
         for cid, r in self.deck_rects():
@@ -348,6 +337,9 @@ class LeaderboardScene(Scene):
         super().draw(surf)
         r = pygame.Rect(W // 2 - 440, 84, 880, 610)
         panel(surf, r, (40, 22, 11), radius=18)
+        if self.rows is not None and len(self.rows) < 6 and not self.err:
+            ui.plate(surf, "laurel", (r.x+15, r.bottom-210, r.w-30, 194), cover=True)
+
         cols = [("HẠNG", 34), ("NGƯỜI CHƠI", 120), ("CẤP", 420), ("ĐIỂM", 500), ("THẮNG", 600), ("THUA", 690), ("CHÍNH XÁC", 770)]
         for lab, x in cols:
             text(surf, lab, (r.x + x, r.y + 22), 11, MUTED, 3)
@@ -365,10 +357,10 @@ class LeaderboardScene(Scene):
                 rr = pygame.Rect(r.x + 14, y, r.w - 28, 40)
                 me = self.app.user and row["username"] == self.app.user["username"]
                 if me:
-                    pygame.draw.rect(surf, (56, 51, 14), rr, border_radius=10)
+                    pygame.draw.rect(surf, ui.SLATE, rr, border_radius=10)
                     pygame.draw.rect(surf, ACCENT, rr, 1, border_radius=10)
                 elif i % 2 == 0:
-                    pygame.draw.rect(surf, (43, 25, 13), rr, border_radius=10)
+                    pygame.draw.rect(surf, ui.NAVY, rr, border_radius=10)
                 cy = y + 20
                 if row["rank"] <= 3:
                     pygame.draw.circle(surf, MEDAL[row["rank"] - 1], (r.x + 46, cy), 14)
@@ -427,6 +419,9 @@ class HistoryScene(Scene):
         super().draw(surf)
         r = pygame.Rect(W // 2 - 460, 84, 920, 610)
         panel(surf, r, (40, 22, 11), radius=18)
+        if self.rows is not None and len(self.rows) < 6 and not self.err:
+            ui.plate(surf, "chronicle", (r.x+15, r.bottom-210, r.w-30, 194), cover=True)
+
         heads = [("#", 26), ("THỜI GIAN", 80), ("ĐỘ KHÓ", 270), ("KẾT QUẢ", 370), ("LƯỢT", 480), ("CHÍNH XÁC", 550), ("INSIGHT", 660)]
         for lab, x in heads:
             text(surf, lab, (r.x + x, r.y + 22), 11, MUTED, 3)
@@ -444,7 +439,7 @@ class HistoryScene(Scene):
         mp = pygame.mouse.get_pos()
         for row, rr in self.row_rects():
             hov = rr.collidepoint(mp)
-            pygame.draw.rect(surf, (59, 36, 18) if hov else (43, 25, 13), rr, border_radius=10)
+            ui.wash(surf, rr, "indigo", ui.AMBER if hov else ui.RULE)
             if hov:
                 pygame.draw.rect(surf, ACCENT, rr, 1, border_radius=10)
             res = {0: ("Thắng", GREEN), 1: ("Thua", RED), -1: ("Hoà", GOLD)}[row["winner"]]
@@ -458,7 +453,7 @@ class HistoryScene(Scene):
             text(surf, f"{row['accuracy']}%", (r.x + 550, cy), 15, TEXT)
             text(surf, row["insight"], (r.x + 660, cy), 15, GREEN)
             br = pygame.Rect(rr.right - 150, rr.y + 6, 138, 28)
-            surf.blit(ui.vgradient(br.w, br.h, (*ACCENT, 255) if hov else (71, 44, 24, 255), (*ui.darken(ACCENT, .3), 255) if hov else (51, 30, 17, 255), 8), br)
+            ui.wash(surf, br, "ochre" if hov else "indigo", ui.SAND)
             icon(surf, "play", (br.x + 18, br.centery), 14, (23, 25, 4) if hov else TEXT)
             text(surf, "Xem replay", (br.x + 32, br.centery - 9), 13, (23, 25, 4) if hov else TEXT, 2)
 

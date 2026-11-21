@@ -255,45 +255,41 @@ _bg = None
 _particles = None
 
 
+def wash(surf, rect, pigment="paper", edge=None):
+    """A real pigment wash cut to a slightly uneven pen contour."""
+    r = pygame.Rect(rect)
+    if min(r.size) < 1:
+        return
+    def paint():
+        tile = pygame.Surface(r.size, pygame.SRCALPHA)
+        plate(tile, pigment, tile.get_rect(), cover=True)
+        rng = random.Random(r.w * 73 + r.h)
+        w, h = r.w - 1, r.h - 1
+        points = [(2, 1)]
+        for x in range(18, w-4, 22):
+            points.append((x, rng.choice((0, 1, 1, 2))))
+        points += [(w-2, 1), (w, h//2), (w-1, h-2)]
+        for x in range(w-16, 4, -25):
+            points.append((x, h-rng.choice((0, 1, 2))))
+        points += [(1, h-1), (0, h//2)]
+        mask = pygame.Surface(r.size, pygame.SRCALPHA)
+        pygame.draw.polygon(mask, (255,255,255), points)
+        tile.blit(mask, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
+        if edge:
+            pygame.draw.aalines(tile, edge, True, points)
+        return tile
+    surf.blit(_cached(("watercolor", r.size, pigment, edge), paint), r)
+
+
 def draw_background(surf, t=0.0):
-    global _bg, _particles
-    if _bg is None:
-        _bg = pygame.Surface((W, H))
-        _bg.blit(vgradient(W, H, (24, 12, 6), (15, 7, 3)), (0, 0))
-        _bg.blit(radial(520, (190, 110, 40), 70), (-260, -300))
-        _bg.blit(radial(560, (150, 36, 40), 80), (W - 520, H - 520))
-        _bg.blit(radial(300, (230, 170, 80), 40), (W // 2 - 300, -200))
-        grid = pygame.Surface((W, H), pygame.SRCALPHA)
-        for x in range(0, W, 48):
-            pygame.draw.line(grid, (230, 180, 110, 7), (x, 0), (x, H))
-        for y in range(0, H, 48):
-            pygame.draw.line(grid, (230, 180, 110, 7), (0, y), (W, y))
-        _bg.blit(grid, (0, 0))
-        rng = random.Random(7)
-        _particles = [(rng.uniform(0, W), rng.uniform(0, H), rng.uniform(4, 16), rng.uniform(1, 2.4),
-                       rng.choice([ACCENT, (255, 140, 60), (255, 224, 170)])) for _ in range(46)]
-    surf.blit(_bg, (0, 0))
-    for (x, y, sp, r, c) in _particles:
-        yy = (y - t * sp) % H
-        xx = x + math.sin(t * 0.3 + y) * 10
-        a = int(90 + 70 * math.sin(t * 1.3 + x))
-        pygame.draw.circle(surf, mix(BG, c, a / 255), (int(xx), int(yy)), int(r))
+    plate(surf, "paper", (0, 0, W, H), cover=True)
+    plate(surf, "journey", (0, 0, W, 68), cover=True)
+    wash(surf, (W//2-300, 5, 600, 55), "indigo")
 
 
-# ---------------------------------------------------------------- panel, thanh, nút
 def panel(surf, rect, color=None, border=None, radius=14, width=1, glass=True, shadow_on=True, accent=None):
     r = pygame.Rect(rect)
-    if shadow_on:
-        surf.blit(shadow(r.w, r.h, radius), (r.x - 14, r.y - 14))
-    base = color if color is not None else PANEL
-    top = (*lighten(base[:3], 0.06), 236 if glass else 255)
-    bot = (*darken(base[:3], 0.15), 236 if glass else 255)
-    surf.blit(vgradient(r.w, r.h, top, bot, radius), r)
-    # viền sáng mảnh phía trên
-    hl = vgradient(r.w, max(2, r.h // 3), (255, 255, 255, 18), (255, 255, 255, 0), radius)
-    surf.blit(hl, r)
-    bcol = accent or border or (128, 96, 54)
-    pygame.draw.rect(surf, bcol, r, width, border_radius=radius)
+    wash(surf, r, "indigo", accent or border or RULE)
 
 
 def bar(surf, rect, frac, color=ACCENT, back=(23, 12, 6)):
@@ -335,39 +331,8 @@ class Button:
 
     def draw(self, surf):
         r = self.rect
-        k = self.kind
-        if k == "primary":
-            top, bot, fg, glow_c = (255, 224, 140), (200, 142, 52), (44, 24, 6), ACCENT
-        elif k == "danger":
-            top, bot, fg, glow_c = (120, 44, 60), (80, 26, 40), (255, 214, 214), RED
-        elif k == "ghost":
-            top, bot, fg, glow_c = (48, 29, 16), (37, 22, 12), MUTED, ACCENT2
-        elif k == "gold":
-            top, bot, fg, glow_c = (255, 214, 110), (230, 160, 50), (40, 24, 4), GOLD
-        else:
-            top, bot, fg, glow_c = (71, 44, 24), (51, 30, 17), TEXT, ACCENT2
-        if not self.enabled:
-            top, bot, fg = (48, 34, 21), (40, 27, 17), (140, 118, 92)
-        if self.hover and self.enabled:
-            surf.blit(glow(r.w, r.h, glow_c, 12, 14, 120), (r.x - 14, r.y - 14))
-            top, bot = lighten(top, 0.12), lighten(bot, 0.08)
-            if k in ("ghost", "normal"):
-                fg = TEXT
-        surf.blit(shadow(r.w, r.h, 12, 8, 90), (r.x - 8, r.y - 8))
-        surf.blit(vgradient(r.w, r.h, (*top, 255), (*bot, 255), 12), r)
-        surf.blit(vgradient(r.w, r.h // 2, (255, 255, 255, 34), (255, 255, 255, 0), 12), r)
-        border = lighten(glow_c, 0.2) if (self.hover and self.enabled) else (255, 255, 255, 40)
-        pygame.draw.rect(surf, border if len(border) == 3 else (150, 116, 64), r, 1, border_radius=12)
-        weight = 2 if k != "ghost" else 1
-        lw, lh = text_size(self.label, self.size, weight) if self.label else (0, 0)
-        isz = int(self.size * 1.15)
-        total = lw + ((isz + 8) if self.icon else 0)
-        x0 = r.centerx - total // 2
-        if self.icon:
-            icon(surf, self.icon, (x0 + isz // 2, r.centery), isz, fg)
-            x0 += isz + 8
-        if self.label:
-            text(surf, self.label, (x0, r.centery - lh // 2 - 1), self.size, fg, weight)
+        draw_book_button(self, surf)
+
 
     def handle(self, e):
         if e.type == pygame.MOUSEMOTION:
@@ -403,20 +368,19 @@ class TextInput:
     def draw(self, surf, dt=0):
         self.t += dt
         r = self.rect
-        if self.focus:
-            surf.blit(glow(r.w, r.h, ACCENT, 12, 10, 90), (r.x - 10, r.y - 10))
-        pygame.draw.rect(surf, (24, 12, 6), r, border_radius=12)
-        pygame.draw.rect(surf, ACCENT if self.focus else LINE, r, 2 if self.focus else 1, border_radius=12)
+        wash(surf, r, "paper", OCHRE if self.focus else RULE)
         shown = ("•" * len(self.value)) if self.password else self.value
-        ty = r.centery - text_size("Ag", 17)[1] // 2
-        if shown:
-            tr = text(surf, shown, (r.x + 16, ty), 17)
-            cx = tr.right + 2
-        else:
-            text(surf, self.placeholder, (r.x + 16, ty), 17, (150, 126, 96))
-            cx = r.x + 16
-        if self.focus and int(self.t * 2) % 2 == 0:
-            pygame.draw.line(surf, ACCENT, (cx, r.y + 12), (cx, r.bottom - 12), 2)
+        inner = r.inflate(-26, -6)
+        old = surf.get_clip()
+        surf.set_clip(old.clip(inner))
+        label = shown or self.placeholder
+        img = render(label, 17, INK if shown else SLATE)
+        x = min(inner.x, inner.right - img.get_width()-3)
+        surf.blit(img, (x, r.centery-img.get_height()//2))
+        if self.focus and int(self.t*2)%2 == 0:
+            cx = x + img.get_width()+1 if shown else inner.x
+            pygame.draw.line(surf, OCHRE, (cx,r.y+11),(cx,r.bottom-11),2)
+        surf.set_clip(old)
 
 
 # ---------------------------------------------------------------- icon vector
@@ -541,101 +505,18 @@ def _cat_icon(surf, cat, center, s, c):
 
 
 # ---------------------------------------------------------------- thẻ bài
-def _card_face(cid, w, h, compact):
-    def build():
-        c = CARDS[cid]
-        col = CAT_COLOR[c["cat"]]
-        s = pygame.Surface((w, h), pygame.SRCALPHA)
-        rad = 14
-        # thân thẻ
-        s.blit(vgradient(w, h, (*darken(col, .55), 255), (23, 12, 7, 255), rad), (0, 0))
-        # khung ngoài 2 lớp
-        pygame.draw.rect(s, (214, 168, 84), (0, 0, w, h), 2, border_radius=rad)
-        pygame.draw.rect(s, lighten(col, .1), (2, 2, w - 4, h - 4), 1, border_radius=rad - 2)
-        pygame.draw.rect(s, (255, 255, 255, 40), (4, 4, w - 8, h - 8), 1, border_radius=rad - 4)
-        # tên
-        fs = 12 if w < 135 else 13
-        name_lines = wrap(c["name"], fs, w - 46, 3)[:2]
-        ny = 9 if len(name_lines) == 2 else 15
-        for ln in name_lines:
-            text(s, ln, (38, ny), fs, TEXT, 3)
-            ny += fs + 3
-        # ô minh hoạ
-        ay = 42
-        ah = int(h * (.42 if compact else .32))
-        art = pygame.Rect(8, ay, w - 16, ah)
-        s.blit(vgradient(art.w, art.h, (*lighten(col, .1), 255), (*darken(col, .45), 255), 9), art)
-        rng = random.Random(cid)
-        pat = pygame.Surface(art.size, pygame.SRCALPHA)
-        for _ in range(14):
-            x, y = rng.randint(0, art.w), rng.randint(0, art.h)
-            pygame.draw.circle(pat, (255, 255, 255, rng.randint(10, 32)), (x, y), rng.randint(2, 10))
-        for k in range(-art.h, art.w, 12):
-            pygame.draw.line(pat, (255, 255, 255, 10), (k, art.h), (k + art.h, 0))
-        s.blit(pat, art)
-        s.blit(radial(int(ah * .7), lighten(col, .5), 90), (art.centerx - int(ah * .7), art.centery - int(ah * .7)))
-        _cat_icon(s, c["cat"], art.center, int(ah * .78), (250, 252, 255))
-        pygame.draw.rect(s, (255, 255, 255, 70), art, 1, border_radius=9)
-        # dải nhóm + độ phức tạp
-        y = art.bottom + 6
-        lab = CATEGORY_LABEL[c["cat"]].upper()
-        text(s, lab, (10, y), 9, lighten(col, .45), 3)
-        cx_w = text_size(c["complexity"], 10, 2)[0]
-        if cx_w < w - 20 - text_size(lab, 9, 3)[0] - 6:
-            text(s, c["complexity"], (w - 10, y), 10, GOLD, 2, right=True)
-            y += 16
-        else:
-            y += 13
-            text(s, c["complexity"], (10, y), 10, GOLD, 2)
-            y += 15
-        if not compact:
-            body = pygame.Rect(8, y + 2, w - 16, h - y - 10)
-            pygame.draw.rect(s, (15, 7, 3, 150), body, border_radius=8)
-            text_box(s, c["text"], (body.x + 6, body.y + 5, body.w - 12, body.h - 8), 10, (226, 232, 246))
-        # viên đá chi phí
-        gem = pygame.Surface((34, 34), pygame.SRCALPHA)
-        pts = [(17 + 15 * math.cos(math.pi / 6 + i * math.pi / 3), 17 + 15 * math.sin(math.pi / 6 + i * math.pi / 3)) for i in range(6)]
-        pygame.draw.polygon(gem, (40, 52, 150), pts)
-        pygame.draw.polygon(gem, (124, 146, 255), [(p[0] * .8 + 3.4, p[1] * .8 + 1.4) for p in pts])
-        pygame.draw.polygon(gem, (210, 220, 255), pts, 2)
-        s.blit(gem, (2, 2))
-        text(s, card_cost_label(cid), (19, 19), 16, (255, 255, 255), 3, center=True, shadow=True)
-        # ánh sáng chéo
-        shine = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.polygon(shine, (255, 255, 255, 14), [(0, 0), (w * .55, 0), (0, h * .45)])
-        s.blit(shine, (0, 0))
-        return s
-    return _cached(("card", cid, w, h, compact), build)
-
-
 def draw_card(surf, rect, cid, playable=True, highlight=False, locked=False, compact=False, badge=None, lift=0):
+    import board
     r = pygame.Rect(rect).move(0, -lift)
-    col = CAT_COLOR[CARDS[cid]["cat"]]
-    if highlight:
-        surf.blit(glow(r.w, r.h, GOLD, 14, 18, 170), (r.x - 18, r.y - 18))
-    elif playable and not locked:
-        surf.blit(glow(r.w, r.h, col, 14, 10, 60), (r.x - 10, r.y - 10))
-    surf.blit(shadow(r.w, r.h, 14, 12, 140), (r.x - 12, r.y - 12))
-    surf.blit(_card_face(cid, r.w, r.h, compact), r)
-    if highlight:
-        pygame.draw.rect(surf, GOLD, r, 2, border_radius=14)
+    if r.h < 100:
+        wash(surf, r, "paper", RULE)
+        text_box(surf, CARDS[cid]["name"], r.inflate(-6,-6), 11, INK, 2)
+        return
+    board.card(surf, r, cid, playable, highlight, badge)
     if locked:
-        s = pygame.Surface(r.size, pygame.SRCALPHA)
-        pygame.draw.rect(s, (14, 6, 3, 185), (0, 0, r.w, r.h), border_radius=14)
-        surf.blit(s, r)
-        icon(surf, "lock", (r.centerx, r.centery - 8), 30, (214, 190, 150))
-        text(surf, "Chưa mở khoá", (r.centerx, r.centery + 22), 12, (226, 206, 170), 2, center=True)
-    elif not playable:
-        s = pygame.Surface(r.size, pygame.SRCALPHA)
-        pygame.draw.rect(s, (14, 6, 3, 120), (0, 0, r.w, r.h), border_radius=14)
-        surf.blit(s, r)
-    if badge:
-        label, bc = badge
-        bw = text_size(label, 11, 3)[0] + 16
-        br = pygame.Rect(r.right - bw + 4, r.y - 10, bw, 22)
-        surf.blit(glow(br.w, br.h, bc, 11, 8, 120), (br.x - 8, br.y - 8))
-        pygame.draw.rect(surf, bc, br, border_radius=11)
-        text(surf, label, br.center, 11, (18, 10, 6), 3, center=True)
+        tag = pygame.Rect(r.x+3, r.bottom-26, r.w-6, 23)
+        wash(surf, tag, "indigo")
+        text(surf, "Chưa mở khoá", tag.center, 11, CREAM, 2, center=True)
 
 
 def draw_card_detail(surf, pos, cid, extra=None):
@@ -709,17 +590,11 @@ class Floating:
 
 
 def logo(surf, center, size=56, t=0.0):
-    cx, cy = center
-    g = radial(int(size * 3), ACCENT, int(60 + 20 * math.sin(t * 1.5)))
-    surf.blit(g, (cx - size * 3, cy - size * 3))
-    text(surf, "ALGO ARENA", (cx, cy + 3), size, (0, 0, 0), 3, center=True)
-    img = render("ALGO ARENA", size, TEXT, 3)
-    grad = vgradient(img.get_width(), img.get_height(), (*lighten(ACCENT, .45), 255), (*ACCENT2, 255))
-    tinted = img.copy()
-    tinted.blit(grad, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    surf.blit(tinted, tinted.get_rect(center=center))
+    text(surf, "ALGO ARENA", center, size, INK, 3, center=True)
 
-# Màu và hình dùng riêng cho màn chính và bàn đấu.
+
+
+
 INK = (20, 37, 48)
 NAVY = (26, 48, 60)
 SLATE = (46, 70, 80)
@@ -751,33 +626,32 @@ def plate(surf, name, rect, cover=False):
 
 
 class BookButton(Button):
-    """Flat ink controls. Input uses Button.handle and the same painted rect."""
-    def draw(self, surf):
-        r = self.rect
-        primary = self.kind == "primary"
-        row = self.kind == "row"
-        fg = INK if row or primary else PAPER
-        if primary:
-            pygame.draw.rect(surf, CREAM if self.hover else AMBER, r, border_radius=4)
-        elif row:
-            if self.hover:
-                pygame.draw.rect(surf, (221, 207, 174), r)
-            pygame.draw.line(surf, SAND, r.bottomleft, r.bottomright)
-        else:
-            pygame.draw.rect(surf, SLATE if self.hover else NAVY, r, border_radius=4)
-            pygame.draw.rect(surf, RULE, r, 1, border_radius=4)
-        if row:
-            icon(surf, self.icon, (r.x + 19, r.centery), 21, OCHRE)
-            text(surf, self.label, (r.x + 46, r.centery - font(self.size, 2).get_height() // 2), self.size, fg, 2)
-            icon(surf, "next", (r.right - 16, r.centery), 11, OCHRE)
-        else:
-            width, height = text_size(self.label, self.size, 2)
-            gap = 8 if self.label and self.icon else 0
-            side = self.size if self.icon else 0
-            x = r.centerx - (width + side + gap) // 2
-            if self.icon:
-                icon(surf, self.icon, (x + side // 2, r.centery), side, fg)
-            text(surf, self.label, (x + side + gap, r.centery - height // 2), self.size, fg, 2)
+    """Notebook menu controls share the standard button renderer."""
+
+
+def draw_book_button(button, surf):
+    r = button.rect
+    row = button.kind == "row"
+    primary = button.kind in ("primary", "gold")
+    pigment = "ochre" if primary else "paper" if row else "indigo"
+    if not button.enabled:
+        pigment = "sage"
+    elif button.hover:
+        pigment = "paper" if primary else "sage"
+    fg = CREAM if pigment == "indigo" else INK
+    wash(surf, r, pigment, OCHRE if button.hover else RULE)
+    if row:
+        icon(surf, button.icon, (r.x + 19, r.centery), 21, OCHRE)
+        text(surf, button.label, (r.x + 46, r.centery - font(button.size, 2).get_height() // 2), button.size, fg, 2)
+        icon(surf, "next", (r.right - 16, r.centery), 11, OCHRE)
+    else:
+        width, height = text_size(button.label, button.size, 2)
+        gap = 8 if button.label and button.icon else 0
+        side = button.size if button.icon else 0
+        x = r.centerx - (width + side + gap) // 2
+        if button.icon:
+            icon(surf, button.icon, (x + side // 2, r.centery), side, fg)
+        text(surf, button.label, (x + side + gap, r.centery - height // 2), button.size, fg, 2)
 
 
 def fit_text(surf, label, rect, size, color=INK, weight=2):

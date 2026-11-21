@@ -24,20 +24,11 @@
   <!-- ============ Khách: giới thiệu + đăng nhập ============ -->
   <section id="guest" class="hidden">
     <div class="hero">
-      <div>
-        <h1>Học Cấu trúc dữ liệu & Giải thuật qua <span style="color:var(--accent)">card battle</span></h1>
-        <p class="muted" style="font-size:17px">Mỗi lá bài là một CTDL hoặc chiến lược thuật toán, có chi phí, hiệu ứng và điều kiện sử dụng.
-          Giải đúng bài toán bằng thẻ tối ưu để chiến thắng. Chọn sai thì bị phạt, và sau trận bạn được giải thích lý do.</p>
-        <div class="features">
-          <div><b>🃏 Xây bộ bài</b>24 thẻ: Stack, Queue, BFS, Dijkstra, DP, Heap…</div>
-          <div><b>🧩 Thử thách</b>Giải đố theo chủ đề để mở khoá thẻ mới</div>
-          <div><b>🎬 Replay</b>Xem lại từng nước đi để học từ quyết định của mình</div>
-          <div><b>🤖 AI 3 mức</b>Ngẫu nhiên, tham lam, tìm kiếm DFS</div>
-          <div><b>📚 Tutorial</b>Lý thuyết ngắn gọn rồi thực hành ngay</div>
-          <div><b>🏆 Xếp hạng</b>Điểm theo độ khó và Insight</div>
-        </div>
-      </div>
+      <figure class="cover"><img src="/static/paint/gate.jpg" alt="Người chơi xếp thẻ trong phòng học nhìn ra núi"></figure>
       <div class="card">
+        <img class="seal" src="/static/paint/emblem.jpg" alt="">
+        <h1>Algo Arena</h1>
+        <p class="intro">Học cấu trúc dữ liệu và giải thuật qua từng lá bài.</p>
         <div class="tabs"><button id="tabLogin" class="on">Đăng nhập</button><button id="tabReg">Đăng ký</button></div>
         <form id="authForm">
           <label>Tên đăng nhập</label><input id="u" autocomplete="username" required minlength="3" maxlength="32">
@@ -48,6 +39,14 @@
         </form>
       </div>
     </div>
+        <div class="features">
+          <div><b>Xây bộ bài</b>24 thẻ: Stack, Queue, BFS, Dijkstra, DP, Heap…</div>
+          <div><b>Thử thách</b>Giải đố theo chủ đề để mở khoá thẻ mới</div>
+          <div><b>Replay</b>Xem lại từng nước đi để học từ quyết định của mình</div>
+          <div><b>AI 3 mức</b>Ngẫu nhiên, tham lam, tìm kiếm DFS</div>
+          <div><b>Tutorial</b>Lý thuyết ngắn gọn rồi thực hành ngay</div>
+          <div><b>Xếp hạng</b>Điểm theo độ khó và Insight</div>
+        </div>
   </section>
 
   <!-- ============ Người dùng: dashboard ============ -->
@@ -90,14 +89,14 @@
   </section>
 
   <section id="board" class="hidden">
-    <div class="card"><h2>🏆 Bảng xếp hạng</h2>
+    <div class="card"><h2>Bảng xếp hạng</h2>
       <p class="muted">Điểm = điểm theo độ khó (Dễ 10 · Thường 20 · Khó 35) + Insight khi thắng. Insight đến từ việc giải bài toán bằng thẻ tối ưu.</p>
       <table><thead><tr><th>Hạng</th><th>Người chơi</th><th>Cấp</th><th>Điểm</th><th>Thắng</th><th>Thua</th><th>Chính xác TB</th></tr></thead><tbody id="lb"></tbody></table>
     </div>
   </section>
 
   <section id="library" class="hidden">
-    <div class="card"><h2>📚 Thư viện thẻ</h2>
+    <div class="card"><h2>Thư viện thẻ</h2>
       <p class="muted">Chi phí năng lượng được thiết kế tỉ lệ với độ phức tạp của thuật toán. Thẻ mờ là thẻ bạn chưa mở khoá.</p>
       <div class="cards" id="lib"></div>
     </div>
@@ -162,7 +161,7 @@ async function render() {
   const ms = await API.get("/api/matches/mine");
   $("#myMatches").innerHTML = ms.length ? ms.map(m => `<tr><td>${m.id}</td><td>${fmtDate(m.created_at)}</td><td>${DIFF[m.difficulty]}</td>
     <td>${resultPill(m.winner)}${m.surrender ? ' <span class="muted">(đầu hàng)</span>' : ""}</td><td>${m.turns}</td><td>${m.accuracy}%</td><td>${m.insight}</td><td>+${m.points_gain}</td>
-    <td><a class="btn sm" href="/play/#replay=${m.id}">🎬 Replay</a></td></tr>`).join("")
+    <td><a class="btn sm" href="/play/#replay=${m.id}">Replay</a></td></tr>`).join("")
     : `<tr><td colspan="9" class="muted">Chưa có trận nào. Vào game và đấu với AI nhé!</td></tr>`;
 }
 
@@ -183,11 +182,12 @@ async function loadLibrary() {
   if (!CAT) CAT = await API.get("/api/catalog");
   const un = new Set(ME ? ME.unlocked : []);
   const how = (c) => c.unlock.map(u => u === "start" ? "có sẵn" : u.startsWith("level:") ? "cấp " + u.split(":")[1] : "thử thách " + u.split(":")[1].toUpperCase()).join(" hoặc ");
+  const illustrations = {"linear_search": "search", "bubble_sort": "swap", "stack": "stack", "queue": "queue", "greedy": "choice", "bfs": "graph", "dfs": "graph", "hash_table": "drawer", "binary_search": "split", "quick_sort": "pivot", "merge_sort": "merge", "dijkstra": "ruler", "bellman_ford": "graph", "dp": "bag", "heap": "heap", "recursion": "boxes", "undo": "spool", "union_find": "pins", "shuffle": "sort", "two_pointers": "plan", "backtracking": "choice", "trie": "tree", "topo_sort": "sort", "kruskal": "scale"};
   $("#lib").innerHTML = Object.entries(CAT.cards).map(([id, c]) => `<div class="gc ${ME && !un.has(id) ? "off" : ""}">
-    <div class="cost">${c.cost < 0 ? "X" : c.cost}</div><h4>${esc(c.name)}</h4>
+    <img class="study" src="/static/paint/${illustrations[id]}.jpg" alt=""><div class="cost">${c.cost < 0 ? "X" : c.cost}</div><h4>${esc(c.name)}</h4>
     <div class="cx">${esc(CAT.categories[c.cat])} · ${esc(c.complexity)}</div>
-    <p>${esc(c.text)}</p><p class="lesson">💡 ${esc(c.lesson)}</p>
-    <p class="lesson">🔓 Mở khoá: ${how(c)}</p></div>`).join("");
+    <p>${esc(c.text)}</p><p class="lesson">${esc(c.lesson)}</p>
+    <p class="lesson">Mở khoá: ${how(c)}</p></div>`).join("");
 }
 
 (async () => {

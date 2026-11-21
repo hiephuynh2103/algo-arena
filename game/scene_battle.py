@@ -210,7 +210,7 @@ class BattleScene(Scene):
     def draw_plaque(self, surf):
         r = PLAQUE
         pygame.draw.rect(surf, ui.INK, r.move(3, 4))
-        pygame.draw.rect(surf, ui.PAPER, r)
+        ui.wash(surf, r, "paper", ui.OCHRE)
         pygame.draw.rect(surf, ui.OCHRE, (r.x + 21, r.y, 36, 7))
         x = r.x + 20
         text(surf, "BÀI TOÁN", (x, r.y + 14), 12, ui.OCHRE, 3)
@@ -278,7 +278,7 @@ class BattleScene(Scene):
         shade.fill((11, 24, 30, 185))
         surf.blit(shade, (0, 0))
         r = LOG_BOX
-        pygame.draw.rect(surf, ui.NAVY, r)
+        ui.wash(surf, r, "indigo", ui.RULE)
         pygame.draw.rect(surf, ui.SAND, r, 1)
         text(surf, f"Nhật ký trận  ·  Lượt {self.g.turn}", (r.x+24, r.y+16), 23, ui.CREAM, 3)
         ui.BookButton(LOG_CLOSE, "Đóng", size=14, icon_name="cross").draw(surf)
@@ -348,7 +348,7 @@ class BattleScene(Scene):
             surf.blit(s, (0, 0))
             col = GREEN if kind == "win" else ORANGE
             r = pygame.Rect(W // 2 - 310, H // 2 - 150, 620, 300)
-            pygame.draw.rect(surf, ui.NAVY, r)
+            ui.wash(surf, r, "indigo", ui.RULE)
             pygame.draw.rect(surf, ui.SAND, r, 1)
             icon(surf, "check" if kind == "win" else "replay", (r.centerx, r.y + 46), 44, col)
             text(surf, title, (r.centerx, r.y + 96), 30, col, 3, center=True)
@@ -565,7 +565,7 @@ class ResultScene(Scene):
         s = self.s
         w = s["winner"]
         title, col = ("CHIẾN THẮNG!", GREEN) if w == 0 else ("HOÀ", GOLD) if w == -1 else ("THẤT BẠI", RED)
-        surf.blit(ui.radial(220, col, 70), (317 - 220, 66 - 220))
+        ui.wash(surf, (20,16,594,90), "indigo", ui.SAND)
         text(surf, title, (317, 66), 48, col, 3, center=True, shadow=True)
         r = pygame.Rect(40, 118, 554, 506)
         panel(surf, r, (43, 24, 12), radius=18)
@@ -573,7 +573,7 @@ class ResultScene(Scene):
                ("Bài toán đã giải", s["solved"], GOLD)]
         for i, (lab, val, c) in enumerate(big):
             br = pygame.Rect(r.x + 20 + i * 174, r.y + 20, 164, 86)
-            pygame.draw.rect(surf, (29, 15, 7), br, border_radius=14)
+            pygame.draw.rect(surf, ui.NAVY, br, border_radius=14)
             pygame.draw.rect(surf, ui.darken(c, .4), br, 1, border_radius=14)
             text(surf, val, (br.centerx, br.y + 32), 32, c, 3, center=True)
             text(surf, lab, (br.centerx, br.y + 66), 12, MUTED, 2, center=True)
@@ -587,7 +587,7 @@ class ResultScene(Scene):
         total = sum(v for _, v in items)
         x = r.x + 22
         bw = r.w - 44
-        pygame.draw.rect(surf, (29, 15, 7), (x, y + 24, bw, 16), border_radius=8)
+        pygame.draw.rect(surf, ui.NAVY, (x, y + 24, bw, 16), border_radius=8)
         for k, v in items:
             ww = int(bw * v / total) if total else 0
             if ww:
@@ -616,6 +616,9 @@ class ResultScene(Scene):
         else:
             text(surf, "Chế độ khách: trận đấu chỉ lưu trong phiên này.", (r.x + 22, y), 15, MUTED)
 
+        if not self.server or not self.server.get("new_unlocks"):
+            ui.plate(surf, "laurel" if w == 0 else "chronicle", (r.x+22,r.bottom-123,r.w-44,104), cover=True)
+
         # giải thích sau trận
         R = pygame.Rect(624, 30, 616, 660)
         panel(surf, R, (40, 22, 11), radius=18)
@@ -637,7 +640,7 @@ class ResultScene(Scene):
                 break
             col = RATING_COLOR[d["rating"]]
             card = pygame.Rect(R.x + 18, y, R.w - 36, h - 10)
-            pygame.draw.rect(surf, (32, 17, 8), card, border_radius=12)
+            pygame.draw.rect(surf, ui.SLATE, card, border_radius=12)
             pygame.draw.rect(surf, ui.darken(col, .35), card, 1, border_radius=12)
             pygame.draw.rect(surf, col, (card.x, card.y + 10, 4, card.h - 20), border_radius=2)
             text(surf, f"Lượt {d['turn']}  ·  {CARDS[d['card']]['name']}", (card.x + 18, card.y + 10), 14, TEXT, 3)
